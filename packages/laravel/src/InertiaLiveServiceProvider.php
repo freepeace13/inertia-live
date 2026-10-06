@@ -9,6 +9,7 @@ use Freepeace13\InertiaLive\Cursor\CursorRepository;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\ServiceProvider;
+use Spatie\EventSourcing\Events\FinishedEventReplay;
 
 final class InertiaLiveServiceProvider extends ServiceProvider
 {
@@ -17,6 +18,7 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $this->mergeConfigFrom(__DIR__.'/../config/inertia-live.php', 'inertia-live');
 
         $this->app->singleton(ChangeBuffer::class);
+        $this->app->singleton(ReplayBuffer::class);
         $this->app->singleton(TopicResolver::class);
         $this->app->singleton(ChangeFlusher::class);
         $this->app->singleton(LiveManager::class);
@@ -51,5 +53,16 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $events = $this->app->make('events');
         $events->listen(JobProcessed::class, $flush);
         $events->listen(JobFailed::class, $flush);
+
+        // After a replay, optionally emit one signal per touched topic.
+        $events->listen(FinishedEventReplay::class, function () use ($flush): void {
+            $changes = $this->app->make(ReplayBuffer::class)->drain();
+
+            foreach ($changes as $change) {
+                $this->app->make(ChangeBuffer::class)->add($change);
+            }
+
+            $flush();
+        });
     }
 }

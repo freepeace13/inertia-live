@@ -6,6 +6,7 @@ namespace Freepeace13\InertiaLive\Concerns;
 
 use Freepeace13\InertiaLive\Change;
 use Freepeace13\InertiaLive\ChangeBuffer;
+use Freepeace13\InertiaLive\ReplayBuffer;
 use Freepeace13\InertiaLive\TopicResolver;
 use Spatie\EventSourcing\EventHandlers\Projectors\Projector;
 use Spatie\EventSourcing\Projectionist;
@@ -44,19 +45,21 @@ trait EmitsLiveChanges
      */
     protected function liveChanged(string $topic, array $props = [], bool $public = false): void
     {
-        if ($this->liveVersion === null || ! $this->liveEmissionEnabled()) {
+        if ($this->liveVersion === null || ! config('inertia-live.enabled', true)) {
             return;
         }
 
-        app(ChangeBuffer::class)->add(new Change($topic, $this->liveVersion, $props, $public));
-    }
+        $change = new Change($topic, $this->liveVersion, $props, $public);
 
-    private function liveEmissionEnabled(): bool
-    {
-        if (! config('inertia-live.enabled', true)) {
-            return false;
+        if (app(Projectionist::class)->isReplaying() && config('inertia-live.replay.suppress', true)) {
+            // Replays touch every event; keep only the final state per topic if requested.
+            if (config('inertia-live.replay.final_signal', false)) {
+                app(ReplayBuffer::class)->add($change);
+            }
+
+            return;
         }
 
-        return ! (config('inertia-live.replay.suppress', true) && app(Projectionist::class)->isReplaying());
+        app(ChangeBuffer::class)->add($change);
     }
 }
