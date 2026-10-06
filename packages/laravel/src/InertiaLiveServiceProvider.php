@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Freepeace13\InertiaLive;
 
+use Freepeace13\InertiaLive\Cursor\CacheCursorRepository;
+use Freepeace13\InertiaLive\Cursor\CursorRepository;
 use Illuminate\Support\ServiceProvider;
 
 final class InertiaLiveServiceProvider extends ServiceProvider
@@ -14,6 +16,9 @@ final class InertiaLiveServiceProvider extends ServiceProvider
 
         $this->app->singleton(ChangeBuffer::class);
         $this->app->singleton(TopicResolver::class);
+        $this->app->singleton(CursorRepository::class, fn ($app) => new CacheCursorRepository(
+            $app['cache']->store($app['config']->get('inertia-live.cursor_store')),
+        ));
     }
 
     public function boot(): void
