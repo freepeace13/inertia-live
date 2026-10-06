@@ -1,6 +1,6 @@
 {
   "name": "@freepeace13/inertia-live-core",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Framework-agnostic client for Inertia Live: subscribes to topic signals and reloads the affected props.",
   "license": "MIT",
   "type": "module",

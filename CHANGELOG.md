@@ -2,7 +2,7 @@
 
 Client and repository changes. Server changes are tracked in [freepeace13/inertia-live-laravel](https://github.com/freepeace13/inertia-live-laravel/blob/main/CHANGELOG.md).
 
-## Unreleased
+## 0.1.0 - 2026-10-07
 
 ### Changed
 - The repository is a pnpm workspace. Package tests move from `packages/*/tests` to `tests/{core,vue,react}`, each its own private package. `@freepeace13/inertia-live-vue` and `-react` ship Laravel Boost guidelines and skills in `resources/boost/`.

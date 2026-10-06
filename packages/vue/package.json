@@ -1,6 +1,6 @@
 {
   "name": "@freepeace13/inertia-live-vue",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Vue 3 adapter for Inertia Live: plugin and useLive().",
   "license": "MIT",
   "type": "module",
