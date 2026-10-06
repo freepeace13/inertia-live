@@ -20,6 +20,7 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $this->app->singleton(TopicResolver::class);
         $this->app->singleton(ChangeFlusher::class);
         $this->app->singleton(LiveManager::class);
+        $this->app->bind(LiveBindings::class);
         $this->app->singleton(CursorRepository::class, fn ($app) => new CacheCursorRepository(
             $app['cache']->store($app['config']->get('inertia-live.cursor_store')),
         ));
@@ -28,6 +29,8 @@ final class InertiaLiveServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->registerFlushPoints();
+
+        LiveResponseMacro::register();
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
