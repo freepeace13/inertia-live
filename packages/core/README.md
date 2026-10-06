@@ -38,10 +38,15 @@ const client = new LiveClient({
 })
 
 client.sync(page.props._live) // on every navigation
-client.afterReload(page.props._live) // after every reload
 client.pause() // while a form is being edited
 client.resume()
 ```
+
+## Behavior notes
+
+- Cursors only move forward. If the server's counters reset to a value below the client's, signals for that topic are ignored until the page is reloaded in full.
+- Leaving a channel calls `echo.leave(channel)`, which also removes any listeners your app attached to that channel on the same Echo instance.
+- A reload cancelled by another Inertia visit is retried, not counted as a failure. After repeated failures the client gives up and `stale` turns true until a reload succeeds.
 
 ## Testing
 

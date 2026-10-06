@@ -8,12 +8,12 @@ export class CursorStore {
 
   /** Raise the cursor; never moves it backwards. */
   raise(topic: string, version: number): void {
-    if (version > this.get(topic)) this.cursors.set(topic, version)
+    if (Number.isFinite(version) && version > this.get(topic)) this.cursors.set(topic, version)
   }
 
   /** Accept a signal if it is newer than the cursor, advancing the cursor. */
   accept(topic: string, version: number): boolean {
-    if (version <= this.get(topic)) return false
+    if (!Number.isFinite(version) || version <= this.get(topic)) return false
     this.cursors.set(topic, version)
     return true
   }

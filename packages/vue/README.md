@@ -58,6 +58,10 @@ const { status, lastSyncedAt, pause, resume, refresh } = useLive()
 
 Call `pause()` while a user edits a form so a reload does not interrupt them; queued signals flush on `resume()`.
 
+## Server-side rendering
+
+During SSR the plugin is inert: it opens no channels and registers no router listeners, and `useLive()` returns a client that reports `connecting`. Live behavior starts in the browser.
+
 ## Testing
 
 ```ts

@@ -40,5 +40,14 @@
   },
   "devDependencies": {
     "laravel-echo": "^2.0.0"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependenciesMeta": {
+    "laravel-echo": {
+      "optional": true
+    }
   }
 }

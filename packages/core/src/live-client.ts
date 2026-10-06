@@ -149,14 +149,6 @@ export class LiveClient {
     }
   }
 
-  /** Call with the fresh `_live` prop after a reload so cursors catch up. */
-  afterReload(liveProp: LiveProp | undefined | null): void {
-    for (const binding of liveProp?.bindings ?? []) {
-      this.cursors.raise(binding.topic, binding.cursor)
-    }
-    this.markSynced()
-  }
-
   /**
    * Hold reloads (e.g. while a form is being edited). Signals keep queueing. Pauses are
    * counted, so several holders can overlap; call the returned function (once) to release
@@ -239,10 +231,9 @@ export class LiveClient {
 
     // Reload only what the signal says changed AND the page binds. A signal without
     // prop keys means "unknown", so fall back to every bound prop.
+    const changed = Array.isArray(signal.props) ? signal.props : []
     const affected =
-      signal.props.length > 0
-        ? binding.props.filter((prop) => signal.props.includes(prop))
-        : binding.props
+      changed.length > 0 ? binding.props.filter((prop) => changed.includes(prop)) : binding.props
 
     if (affected.length === 0) return // the page shows nothing this change touched
 

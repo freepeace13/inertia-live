@@ -48,5 +48,14 @@
     "@inertiajs/vue3": "catalog:",
     "laravel-echo": "^2.0.0",
     "vue": "^3.4.0"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependenciesMeta": {
+    "laravel-echo": {
+      "optional": true
+    }
   }
 }

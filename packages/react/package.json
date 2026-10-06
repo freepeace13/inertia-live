@@ -51,5 +51,14 @@
     "laravel-echo": "^2.0.0",
     "react": "catalog:",
     "react-dom": "catalog:"
+  },
+  "sideEffects": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "peerDependenciesMeta": {
+    "laravel-echo": {
+      "optional": true
+    }
   }
 }

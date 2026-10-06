@@ -292,23 +292,8 @@ describe('pause, resume and refresh', () => {
   })
 })
 
-describe('afterReload', () => {
-  it('advances cursors from the fresh _live prop and stamps lastSyncedAt', async () => {
-    const { fake, client } = setup()
-    client.sync(page(binding('documents.a', ['document'])))
-    expect(client.lastSyncedAt).toBeNull()
-
-    client.afterReload(page(binding('documents.a', ['document'], 8)))
-    fake.emit('documents.a', 8)
-    await vi.advanceTimersByTimeAsync(500)
-
-    expect(fake.reloads).toEqual([])
-    expect(client.lastSyncedAt).toBeInstanceOf(Date)
-  })
-})
-
 describe('onSynced', () => {
-  it('notifies after a reload and after afterReload, until unsubscribed', async () => {
+  it('notifies after each reload, until unsubscribed', async () => {
     const { fake, client } = setup()
     const seen: Date[] = []
     const off = client.onSynced((at) => seen.push(at))
@@ -316,12 +301,12 @@ describe('onSynced', () => {
 
     fake.emit('documents.a', 1)
     await vi.advanceTimersByTimeAsync(150)
-    client.afterReload(page(binding('documents.a', ['document'], 1)))
-    expect(seen).toHaveLength(2)
+    expect(seen).toHaveLength(1)
+    expect(client.lastSyncedAt).toBeInstanceOf(Date)
 
     off()
     await client.refresh()
-    expect(seen).toHaveLength(2)
+    expect(seen).toHaveLength(1)
   })
 })
 
@@ -652,5 +637,44 @@ describe('stale', () => {
 
     expect(client.stale).toBe(false)
     expect(changes).toEqual([true, false])
+  })
+})
+
+describe('malformed signals', () => {
+  it('ignores a non-numeric version and tolerates missing props', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', Number.NaN)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([])
+
+    fake.emit('documents.a', 1, undefined as unknown as string[])
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([['document']])
+  })
+})
+
+describe('connection state mapping', () => {
+  it.each([
+    ['unavailable', 'reconnecting'],
+    ['failed', 'offline'],
+    ['disconnected', 'offline'],
+  ])('maps %s to %s once live', (state, expected) => {
+    const { fake, client } = setup()
+    fake.setConnectionState(state)
+    expect(client.status).toBe(expected)
+  })
+
+  it('treats initialized as reconnecting after having been live', () => {
+    const { fake, client } = setup()
+    fake.setConnectionState('initialized')
+    expect(client.status).toBe('reconnecting')
+  })
+
+  it('ignores unknown states', () => {
+    const { fake, client } = setup()
+    fake.setConnectionState('mystery')
+    expect(client.status).toBe('live')
   })
 })

@@ -58,6 +58,8 @@ const { status, lastSyncedAt, pause, resume, refresh } = useLive()
 
 Call `pause()` while a user edits a form so a reload does not interrupt them; queued signals flush on `resume()`.
 
+> **Keep `echo`, `connection`, `debounceMs` and `maxWaitMs` referentially stable** (module scope or `useMemo`). A new value recreates the client, which rejoins every channel and drops queued reloads. `reload` and `onError` may change freely.
+
 ## Testing
 
 ```tsx
