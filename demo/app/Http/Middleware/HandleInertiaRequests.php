@@ -17,6 +17,15 @@ class HandleInertiaRequests extends Middleware
     protected $rootView = 'app';
 
     /**
+     * The demo ships two frontends over the same backend: Vue at /documents, React at /react/documents.
+     * An Inertia app uses one client adapter, so each gets its own root view and Vite entry.
+     */
+    public function rootView(Request $request): string
+    {
+        return $request->routeIs('react.*') ? 'app-react' : 'app';
+    }
+
+    /**
      * Determines the current asset version.
      *
      * @see https://inertiajs.com/asset-versioning

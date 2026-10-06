@@ -129,7 +129,7 @@ Client helpers: `createFakeLive()` from `@freepeace13/inertia-live/vue/testing` 
 ```
 packages/laravel   composer package (Pest + Orchestra Testbench)
 packages/client    npm package (Vitest): core, vue, react
-demo/              Laravel 13 + Vue demo app
+demo/              Laravel 13 demo app with Vue and React frontends
 ```
 
 MIT licensed.

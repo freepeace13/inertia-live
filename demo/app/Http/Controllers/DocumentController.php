@@ -14,9 +14,20 @@ use Inertia\Response;
 
 class DocumentController extends Controller
 {
+    /** Vue pages live in Pages/Documents, React pages in Pages/React/Documents. */
+    private function component(string $name): string
+    {
+        return request()->routeIs('react.*') ? "React/{$name}" : $name;
+    }
+
+    private function routeName(string $name): string
+    {
+        return (request()->routeIs('react.*') ? 'react.' : '').$name;
+    }
+
     public function index(): Response
     {
-        return Inertia::render('Documents/Index', [
+        return Inertia::render($this->component('Documents/Index'), [
             'documents' => Document::latest()->get(['uuid', 'title']),
         ]);
     }
@@ -28,12 +39,12 @@ class DocumentController extends Controller
 
         event(new DocumentCreated($uuid, $data['title']));
 
-        return to_route('documents.show', $uuid);
+        return to_route($this->routeName('documents.show'), $uuid);
     }
 
     public function show(Document $document): Response
     {
-        return Inertia::render('Documents/Show', [
+        return Inertia::render($this->component('Documents/Show'), [
             'document' => $document->only('uuid', 'title'),
             'comments' => fn () => $document->comments()->latest('id')->get(['id', 'body']),
         ])->live("documents.{$document->uuid}", only: ['document', 'comments']);

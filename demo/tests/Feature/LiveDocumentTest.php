@@ -66,4 +66,44 @@ class LiveDocumentTest extends TestCase
 
         Live::assertNothingChangedFor('documents.some-other-uuid');
     }
+
+    public function test_react_frontend_renders_its_own_components_and_root_view(): void
+    {
+        $this->post('/react/documents', ['title' => 'React doc'])
+            ->assertRedirectContains('/react/documents/');
+
+        $document = Document::firstOrFail();
+
+        $this->get("/react/documents/{$document->uuid}")
+            ->assertOk()
+            ->assertSee('app-react') // the React Vite entry, not the Vue one
+            ->assertInertia(fn (AssertableInertia $page) => $page
+                ->component('React/Documents/Show')
+                ->where('_live.bindings.0.topic', "documents.{$document->uuid}")
+                ->where('_live.bindings.0.props', ['document', 'comments']));
+
+        $this->get('/react/documents')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('React/Documents/Index'));
+    }
+
+    public function test_vue_frontend_keeps_its_own_root_view(): void
+    {
+        $document = $this->createDocument();
+
+        $this->get("/documents/{$document->uuid}")
+            ->assertOk()
+            ->assertDontSee('app-react')
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Documents/Show'));
+    }
+
+    public function test_both_frontends_share_the_same_topic_and_signals(): void
+    {
+        $document = $this->createDocument();
+        Live::fake();
+
+        $this->put("/react/documents/{$document->uuid}", ['title' => 'From React'])->assertRedirect();
+
+        $this->assertSame('From React', $document->fresh()->title);
+        Live::assertChanged("documents.{$document->uuid}", props: ['document']);
+    }
 }

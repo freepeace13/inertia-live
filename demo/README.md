@@ -1,12 +1,16 @@
 # Inertia Live demo
 
-Laravel 13 + Vue 3 app showing Inertia Live Projections. Open one document in two browser tabs: renaming it or adding a comment in one tab updates the other without any page-level WebSocket code.
+Laravel 13 app showing Inertia Live Projections with **two frontends over one backend**: Vue 3 at `/documents` and React at `/react/documents`. Open one document in two browser tabs: renaming it or adding a comment in one tab updates the other without any page-level WebSocket code.
+
+An Inertia app uses one client adapter, so each frontend has its own Vite entry and root view (`app.js` + `app.blade.php`, `app-react.jsx` + `app-react.blade.php`). Both share the controllers, events, projector and topics; `HandleInertiaRequests::rootView()` and the controller pick the right one by route name.
 
 - `app/Domain/Documents` – stored events (`#[LiveTopic]`), projector (`EmitsLiveChanges`)
 - `app/Http/Controllers/DocumentController.php` – `->live("documents.{uuid}", only: [...])`
 - `app/Providers/AppServiceProvider.php` – `Live::authorize(...)`
-- `resources/js/app.js` – `app.use(InertiaLive, { echo })`
-- `resources/js/Pages/Documents/Show.vue` – `useLive()` status and `pause()`/`resume()` while editing
+- `resources/js/app.js` – Vue: `app.use(InertiaLive, { echo })`
+- `resources/js/Pages/Documents/Show.vue` – Vue: `useLive()` status and `pause()`/`resume()` while editing
+- `resources/js/app-react.jsx` + `resources/js/react/AppLayout.jsx` – React: `InertiaLiveProvider` in a persistent layout (it reads `usePage()`, so it must render inside the Inertia tree)
+- `resources/js/Pages/React/Documents/Show.jsx` – React: the same page with the `useLive()` hook
 
 The app signs everyone in as one demo user (`LoginDemoUser`) so private channels work without a login screen. Never do that in a real app.
 
@@ -27,13 +31,15 @@ php artisan serve --port=8000          # terminal 2
 npm run dev                            # terminal 3
 ```
 
-Open http://localhost:8000, create a document, then open it in a second tab.
+Open http://localhost:8000 (Vue) or http://localhost:8000/react/documents (React), create a document, then open it in a second tab.
 
 ## Verify
 
 ```bash
 php artisan test   # server flow with Live::fake()
 npm run e2e        # real Reverb round trip: two Echo clients, sender exclusion, auth refusal
+npx playwright install chromium   # once
+npm run build && npm run e2e:browser   # two real browser tabs, Vue then React
 ```
 
-`npm run e2e` needs `reverb:start` and `serve` running as above.
+The e2e scripts need `reverb:start` and `serve` running as above. The browser test also checks that `pause()` holds updates while an input is focused and that an unsent draft survives a live reload.

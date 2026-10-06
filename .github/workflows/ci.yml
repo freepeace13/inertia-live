@@ -109,3 +109,11 @@ jobs:
       - run: npm install
       - run: npm run build
       - run: php artisan test
+      - name: End-to-end (Reverb round trip and two real browser tabs, Vue and React)
+        run: |
+          npx playwright install --with-deps chromium
+          php artisan reverb:start --port=8080 &
+          php artisan serve --port=8000 &
+          sleep 5
+          npm run e2e
+          npm run e2e:browser
