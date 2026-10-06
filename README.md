@@ -6,6 +6,7 @@ The socket only carries a tiny "topic changed" signal. The page re-fetches the a
 
 - Composer: `freepeace13/inertia-live-projections` (`packages/laravel`)
 - npm: `@freepeace13/inertia-live` (`packages/client`, Vue 3 and React)
+- Documentation: [docs/](docs/README.md)
 - Design: [docs/SPEC.md](docs/SPEC.md)
 
 Requires PHP 8.3+, Laravel 12/13, Inertia 2/3, `spatie/laravel-event-sourcing` ^7.14 and any Echo-compatible broadcaster (Reverb, Pusher, Ably).
