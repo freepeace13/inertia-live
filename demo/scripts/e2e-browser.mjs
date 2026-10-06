@@ -28,7 +28,7 @@ await a.getByRole('button', { name: 'Create' }).click();
 await a.waitForURL(/\/documents\/[0-9a-f-]{36}$/);
 
 const loadedReactEntry = await a.evaluate(() =>
-    [...document.querySelectorAll('script[src]')].some((script) => script.src.includes('app-react')),
+    [...document.querySelectorAll('script[src]')].some((script) => script.src.includes('/js/react/') || script.src.includes('/react-')),
 );
 check(`serves the ${variant} frontend`, loadedReactEntry === (variant === 'react'));
 

@@ -76,14 +76,14 @@ class LiveDocumentTest extends TestCase
 
         $this->get("/react/documents/{$document->uuid}")
             ->assertOk()
-            ->assertSee('app-react') // the React Vite entry, not the Vue one
+            ->assertSee('build/assets/react-') // the React Vite entry, not the Vue one
             ->assertInertia(fn (AssertableInertia $page) => $page
-                ->component('React/Documents/Show')
+                ->component('Documents/Show')
                 ->where('_live.bindings.0.topic', "documents.{$document->uuid}")
                 ->where('_live.bindings.0.props', ['document', 'comments']));
 
         $this->get('/react/documents')
-            ->assertInertia(fn (AssertableInertia $page) => $page->component('React/Documents/Index'));
+            ->assertInertia(fn (AssertableInertia $page) => $page->component('Documents/Index'));
     }
 
     public function test_vue_frontend_keeps_its_own_root_view(): void
@@ -92,7 +92,7 @@ class LiveDocumentTest extends TestCase
 
         $this->get("/documents/{$document->uuid}")
             ->assertOk()
-            ->assertDontSee('app-react')
+            ->assertDontSee('build/assets/react-')
             ->assertInertia(fn (AssertableInertia $page) => $page->component('Documents/Show'));
     }
 
