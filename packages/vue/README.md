@@ -13,7 +13,7 @@ The socket only carries a tiny "topic changed" signal. The client reloads the af
 | **`@freepeace13/inertia-live-vue`** (this package) | `npm install @freepeace13/inertia-live-vue` | Vue 3 plugin and `useLive()` |
 | [`@freepeace13/inertia-live-react`](https://github.com/freepeace13/inertia-live/tree/main/packages/react) | `npm install @freepeace13/inertia-live-react` | React provider and `useLive()` |
 
-Full documentation and a runnable demo live in the [main repository](https://github.com/freepeace13/inertia-live).
+Full documentation and a runnable demo live in the [docs](https://github.com/freepeace13/inertia-live-docs) and [demo](https://github.com/freepeace13/inertia-live-demo) repositories.
 
 ## Requirements
 
@@ -71,7 +71,7 @@ fake.emit('documents.a', 1)
 
 ## Documentation
 
-[Vue 3](https://github.com/freepeace13/inertia-live/blob/main/docs/vue.md), [Testing](https://github.com/freepeace13/inertia-live/blob/main/docs/testing.md) and the [documentation index](https://github.com/freepeace13/inertia-live/blob/main/docs/README.md).
+[Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/vue.md), [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/testing.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
 
 ## Development
 
