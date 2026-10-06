@@ -17,27 +17,40 @@ export interface LiveClientOptions {
   debounceMs?: number
   /** Override connection observation for non-Pusher Echo drivers. */
   connection?: ConnectionLike
-  /** Called when a reload rejects. The queued props are not retried. */
+  /**
+   * Longest a steady stream of signals can postpone a reload. Default `debounceMs * 4`.
+   * Without it a signal every few hundred ms would restart the debounce forever.
+   */
+  maxWaitMs?: number
+  /** Called each time a reload rejects. The props are re-queued and retried with backoff. */
   onError?: (error: unknown) => void
 }
 
 const SIGNAL_EVENT = '.live.changed'
+const RETRY_BASE_MS = 1000
+const RETRY_MAX_MS = 30_000
+const MAX_RETRIES = 5
 
 export class LiveClient {
   private readonly echo: EchoLike
   private readonly reloader: Reloader
   private readonly debounceMs: number
+  private readonly maxWaitMs: number
   private readonly onError?: (error: unknown) => void
 
   private readonly cursors = new CursorStore()
   private readonly tracker: ConnectionTracker
   private readonly bindings = new Map<string, Binding>() // by channel
   private readonly pending = new Set<string>()
+  /** Channels subscribed since their last `_live` refresh: a cursor jump there means a missed signal. */
+  private readonly verifying = new Set<string>()
   private readonly unsubscribeTracker: () => void
 
   private timer: ReturnType<typeof setTimeout> | null = null
-  private paused = false
+  private pauses = 0
   private reloading = false
+  private failures = 0
+  private burstStart: number | null = null
   private destroyed = false
   private synced: Date | null = null
   private readonly syncListeners = new Set<(at: Date) => void>()
@@ -46,13 +59,14 @@ export class LiveClient {
     this.echo = options.echo
     this.reloader = options.reload
     this.debounceMs = options.debounceMs ?? 150
+    this.maxWaitMs = options.maxWaitMs ?? this.debounceMs * 4
     this.onError = options.onError
 
     this.tracker = new ConnectionTracker(options.echo, options.connection)
     this.unsubscribeTracker = this.tracker.onChange((status, previous) => {
       // Signals may have been missed while disconnected: reload everything once.
       if (status === 'live' && (previous === 'reconnecting' || previous === 'offline')) {
-        void this.refresh()
+        this.catchUp()
       }
     })
   }
@@ -86,11 +100,20 @@ export class LiveClient {
         this.echo.leave(channel)
         this.cursors.forget(binding.topic)
         this.bindings.delete(channel)
+        this.verifying.delete(channel)
       }
     }
 
     for (const [channel, binding] of next) {
+      // A fresh cursor ahead of ours, right after subscribing, means a signal slipped through
+      // between render and subscription. The props in this response may predate it.
+      const missed = this.verifying.has(channel) && binding.cursor > this.cursors.get(binding.topic)
+      this.verifying.delete(channel)
       this.cursors.raise(binding.topic, binding.cursor)
+      if (missed) {
+        for (const prop of binding.props) this.pending.add(prop)
+        this.schedule()
+      }
 
       if (this.bindings.has(channel)) {
         this.bindings.set(channel, binding)
@@ -100,6 +123,7 @@ export class LiveClient {
       this.bindings.set(channel, binding)
       const subscription = binding.public ? this.echo.channel(channel) : this.echo.private(channel)
       subscription.listen(SIGNAL_EVENT, (signal) => this.receive(channel, signal))
+      subscription.subscribed?.(() => this.verify(channel))
     }
   }
 
@@ -111,15 +135,33 @@ export class LiveClient {
     this.markSynced()
   }
 
-  /** Hold reloads (e.g. while a form is being edited). Signals keep queueing. */
-  pause(): void {
-    this.paused = true
+  /**
+   * Hold reloads (e.g. while a form is being edited). Signals keep queueing. Pauses are
+   * counted, so several holders can overlap; call the returned function (once) to release
+   * this one. `useLive()` does that for you when its component goes away.
+   */
+  pause(): () => void {
+    this.pauses += 1
     this.clearTimer()
+    this.burstStart = null
+
+    let released = false
+    return () => {
+      if (released) return
+      released = true
+      this.resume()
+    }
   }
 
-  /** Resume reloads, flushing anything queued while paused. */
+  /** Release one pause. Reloads run again, flushing anything queued, once none are left. */
   resume(): void {
-    this.paused = false
+    if (this.pauses > 0) this.pauses -= 1
+    if (this.pauses === 0 && this.pending.size > 0) this.schedule()
+  }
+
+  /** Drop every pause, e.g. on navigation: whatever paused the old page is gone. */
+  resetPause(): void {
+    this.pauses = 0
     if (this.pending.size > 0) this.schedule()
   }
 
@@ -129,6 +171,7 @@ export class LiveClient {
     if (props.length === 0 || this.destroyed) return
 
     this.clearTimer()
+    this.burstStart = null
     this.pending.clear()
     await this.run(props)
   }
@@ -136,12 +179,23 @@ export class LiveClient {
   destroy(): void {
     this.destroyed = true
     this.clearTimer()
+    this.verifying.clear()
     this.pending.clear()
     for (const channel of this.bindings.keys()) this.echo.leave(channel)
     this.bindings.clear()
     this.unsubscribeTracker()
     this.tracker.destroy()
     this.syncListeners.clear()
+  }
+
+  /** After a reconnect every bound prop may be stale. Paused clients queue it instead of reloading. */
+  private catchUp(): void {
+    if (this.pauses === 0) {
+      void this.refresh()
+      return
+    }
+
+    for (const prop of this.boundProps()) this.pending.add(prop)
   }
 
   private receive(channel: string, signal: ChangeSignal): void {
@@ -162,21 +216,43 @@ export class LiveClient {
     this.schedule()
   }
 
+  /** The channel just subscribed: re-read `_live` so `sync()` can spot a missed signal. */
+  private verify(channel: string): void {
+    if (this.destroyed || !this.bindings.has(channel)) return
+    this.verifying.add(channel)
+    // An in-flight reload brings a fresh `_live` anyway.
+    if (!this.reloading) void this.run(['_live'])
+  }
+
   private schedule(): void {
-    if (this.paused || this.reloading) return // a follow-up is scheduled when the reload ends
+    if (this.pauses > 0 || this.reloading) return // a follow-up is scheduled when the reload ends
 
     this.clearTimer()
 
-    if (this.debounceMs <= 0) {
+    const delay = this.nextDelay()
+    if (delay <= 0) {
       this.flush()
       return
     }
 
-    this.timer = setTimeout(() => this.flush(), this.debounceMs)
+    this.timer = setTimeout(() => this.flush(), delay)
+  }
+
+  private nextDelay(): number {
+    // After a failure, back off instead of hammering a broken endpoint.
+    if (this.failures > 0) {
+      return Math.min(RETRY_BASE_MS * 2 ** (this.failures - 1), RETRY_MAX_MS)
+    }
+    if (this.debounceMs <= 0) return 0
+
+    // Each signal restarts the quiet window, but never past maxWaitMs since the first one.
+    this.burstStart ??= Date.now()
+    return Math.min(this.debounceMs, Math.max(0, this.burstStart + this.maxWaitMs - Date.now()))
   }
 
   private flush(): void {
     this.timer = null
+    this.burstStart = null
     if (this.pending.size === 0) return
 
     const props = [...this.pending]
@@ -188,12 +264,20 @@ export class LiveClient {
     this.reloading = true
     try {
       await this.reloader(props)
+      this.failures = 0
       this.markSynced()
     } catch (error) {
       this.onError?.(error)
+      // The cursor already moved past this change, so no later signal re-delivers it: retry.
+      this.failures += 1
+      if (this.failures > MAX_RETRIES) {
+        this.failures = 0 // give up; refresh() or the next signal recovers
+      } else if (!this.destroyed) {
+        for (const prop of props) this.pending.add(prop)
+      }
     } finally {
       this.reloading = false
-      // Signals that arrived mid-flight need one follow-up reload.
+      // Signals that arrived mid-flight (or a failed reload) need a follow-up reload.
       if (this.pending.size > 0 && !this.destroyed) this.schedule()
     }
   }

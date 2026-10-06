@@ -26,7 +26,7 @@ it('signals the document topic once', function () {
 
 A change is "flushed" when the request, job or command ends (or when the flusher is called). In feature tests that is the end of the simulated request.
 
-`Live::authorize()` and `Live::hasAuthorizerFor()` still delegate to the real manager under the fake.
+`Live::authorize()`, `Live::publicTopic()` and `Live::hasAuthorizerFor()` still delegate to the real manager under the fake. `Live::fake()` can be called repeatedly and does not rebind `LiveManager`, so resolving `ChangeFlusher` or `LiveManager` afterwards still returns the real classes.
 
 ### Testing without the fake
 
@@ -54,6 +54,8 @@ The Vue and React versions also accept `{ debounceMs }`. All accept `{ channelPr
 | `joined` | `Set<string>` of channels currently joined |
 | `left` | Channels left, in order |
 | `emit(topic, version, props = [])` | Deliver a change signal as if broadcast on `{prefix}.{topic}` |
+| `setSocketId(id)` | What `echo.socketId()` reports, for sender-exclusion tests |
+| `confirmSubscription(topic)` | Simulate the server confirming the subscription (triggers the missed-signal check) |
 | `setConnectionState(state)` | Simulate `connected`, `connecting`, `unavailable`, `disconnected`, `failed` |
 
 ### Example (core)

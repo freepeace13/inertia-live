@@ -8,6 +8,8 @@ export function createFakeLive(options: { channelPrefix?: string } = {}) {
   const prefix = options.channelPrefix ?? 'live'
   const listeners = new Map<string, Array<(payload: ChangeSignal) => void>>()
   const stateListeners = new Set<(payload: { current: string }) => void>()
+  const subscribedCallbacks = new Map<string, Array<() => void>>()
+  let socketId: string | undefined
   const joined = new Set<string>()
   const left: string[] = []
   const reloads: string[][] = []
@@ -29,6 +31,10 @@ export function createFakeLive(options: { channelPrefix?: string } = {}) {
         listeners.set(name, [...(listeners.get(name) ?? []), callback])
         return channel
       },
+      subscribed(callback) {
+        subscribedCallbacks.set(name, [...(subscribedCallbacks.get(name) ?? []), callback])
+        return channel
+      },
     }
     return channel
   }
@@ -39,8 +45,10 @@ export function createFakeLive(options: { channelPrefix?: string } = {}) {
     leave(name) {
       joined.delete(name)
       listeners.delete(name)
+      subscribedCallbacks.delete(name)
       left.push(name)
     },
+    socketId: () => socketId,
     connector: { pusher: { connection } },
   }
 
@@ -60,6 +68,14 @@ export function createFakeLive(options: { channelPrefix?: string } = {}) {
     emit(topic: string, version: number, props: string[] = []): void {
       const signal: ChangeSignal = { topic, version, props }
       for (const callback of listeners.get(`${prefix}.${topic}`) ?? []) callback(signal)
+    },
+    /** The socket id Echo reports; set it to test sender exclusion. */
+    setSocketId(id: string | undefined): void {
+      socketId = id
+    },
+    /** Simulate the server confirming the subscription to `<prefix>.<topic>`. */
+    confirmSubscription(topic: string): void {
+      for (const callback of subscribedCallbacks.get(`${prefix}.${topic}`) ?? []) callback()
     },
     /** Simulate a Pusher connection state change (`connected`, `unavailable`, `disconnected`, …). */
     setConnectionState(state: string): void {

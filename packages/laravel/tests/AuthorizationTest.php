@@ -42,3 +42,15 @@ it('knows which topics have an authorizer', function () {
         ->and(Live::hasAuthorizerFor('documents.abc.extra'))->toBeFalse()
         ->and(Live::hasAuthorizerFor('invoices.1'))->toBeFalse();
 });
+
+it('knows which topic patterns are public', function () {
+    Live::publicTopic('workspaces.{id}');
+
+    expect(Live::isPublic('workspaces.7'))->toBeTrue()
+        ->and(Live::isPublic('documents.7'))->toBeFalse();
+});
+
+it('refuses a pattern registered as both public and private', function () {
+    Live::authorize('documents.{uuid}', fn () => true);
+    Live::publicTopic('documents.{uuid}');
+})->throws(InvalidArgumentException::class, 'already registered as private');

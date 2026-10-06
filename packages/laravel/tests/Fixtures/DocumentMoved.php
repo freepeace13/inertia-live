@@ -8,7 +8,7 @@ use Freepeace13\InertiaLive\Attributes\LiveTopic;
 use Spatie\EventSourcing\StoredEvents\ShouldBeStored;
 
 #[LiveTopic('documents.{documentUuid}', props: ['document'])]
-#[LiveTopic('workspaces.{workspaceId}', props: ['documents'], public: true)]
+#[LiveTopic('workspaces.{workspaceId}', props: ['documents'])]
 final class DocumentMoved extends ShouldBeStored
 {
     public function __construct(

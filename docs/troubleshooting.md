@@ -60,4 +60,4 @@ Keep `replay.suppress` at `true`. Set `replay.final_signal` to `true` if pages s
 
 ## Stale page after a cache flush
 
-Cursors live in the cache. A flush resets them to 0, which causes extra reloads but not stale data. In multi-server deployments, point `cursor_store` at a shared store.
+Cursors live in the cache. A flush restarts each topic's counter at the current time, which is above every earlier number, so open pages keep accepting signals and nothing goes stale. In multi-server deployments, point `cursor_store` at a shared store that supports atomic increment (Redis, database, Memcached), not `file`.

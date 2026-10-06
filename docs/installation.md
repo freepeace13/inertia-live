@@ -41,6 +41,7 @@ You need:
 
 - A working broadcaster (`BROADCAST_CONNECTION=reverb`, or `pusher`/`ably`) with the server running.
 - Channel authorization routes enabled, so `private-live.*` channels can be authorized. `Live::authorize()` registers its callbacks with `Broadcast::channel()`, so they end up in your normal channel authorization flow.
+- A cache store that supports atomic `increment` for cursors (Redis, database or Memcached; not `file` with concurrent workers). See [Consistency](consistency.md#cursor-storage).
 - A queue is **not** required for the signal: `LiveChangeBroadcast` implements `ShouldBroadcastNow`.
 
 ## Client

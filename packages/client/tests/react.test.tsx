@@ -1,16 +1,25 @@
 // @vitest-environment jsdom
 import * as inertia from '@inertiajs/react'
 import { act, cleanup, render } from '@testing-library/react'
-import { StrictMode } from 'react'
+import { StrictMode, useEffect } from 'react'
 import type { Binding } from '../src/core/types'
 import { InertiaLiveProvider, inertiaReloader, useLive } from '../src/react'
 import { createFakeLive } from '../src/react/testing'
 
-const current = vi.hoisted(() => ({ props: {} as Record<string, unknown> }))
+const current = vi.hoisted(() => ({
+  props: {} as Record<string, unknown>,
+  handlers: {} as Record<string, (event?: unknown) => void>,
+}))
 
 vi.mock('@inertiajs/react', () => ({
   usePage: () => ({ props: current.props }),
-  router: { reload: vi.fn((options: { onFinish?: () => void }) => options.onFinish?.()) },
+  router: {
+    reload: vi.fn((options: { onFinish?: () => void }) => options.onFinish?.()),
+    on: vi.fn((event: string, callback: (event?: unknown) => void) => {
+      current.handlers[event] = callback
+      return () => delete current.handlers[event]
+    }),
+  },
 }))
 
 const binding = (topic: string, props: string[], cursor = 0): Binding => ({
@@ -213,5 +222,58 @@ describe('useLive', () => {
     })
 
     expect(new Set(fake.reloads[0])).toEqual(new Set(['document', 'comments']))
+  })
+
+  it('adds the socket id to every visit so the server skips the sender', async () => {
+    const { fake } = mount()
+    fake.setSocketId('123.456')
+
+    const visit = { headers: {} as Record<string, string> }
+    current.handlers.before({ detail: { visit } })
+
+    expect(visit.headers).toEqual({ 'X-Socket-ID': '123.456' })
+  })
+
+  it('drops pauses on navigation', async () => {
+    const { fake, navigate } = mount()
+    navigate(binding('documents.a', ['document']))
+
+    await act(async () => {
+      controls.pause()
+      fake.emit('documents.a', 1)
+      current.handlers.navigate()
+      await vi.advanceTimersByTimeAsync(150)
+    })
+
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('releases a component pause when it unmounts without resuming', async () => {
+    const fake = createFakeLive()
+    current.props = pageWith(binding('documents.a', ['document']))
+
+    function PauseOnMount() {
+      const live = useLive()
+      useEffect(() => live.pause(), [live.pause])
+      return null
+    }
+
+    const view = render(
+      <InertiaLiveProvider {...fake.providerProps}>
+        <PauseOnMount />
+      </InertiaLiveProvider>,
+    )
+    await act(async () => {
+      fake.emit('documents.a', 1)
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+    expect(fake.reloads).toEqual([])
+
+    view.rerender(<InertiaLiveProvider {...fake.providerProps} />)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150)
+    })
+
+    expect(fake.reloads).toEqual([['document']])
   })
 })

@@ -16,7 +16,7 @@ it('still broadcasts inside the wrapping transaction of DatabaseTransactions tes
     Event::fake([LiveChangeBroadcast::class]);
     Live::authorize('documents.{uuid}', fn () => true);
 
-    app(ChangeBuffer::class)->add(new Change('documents.abc', 1, ['document']));
+    app(ChangeBuffer::class)->add(new Change('documents.abc', ['document']));
     app(ChangeFlusher::class)->flush();
 
     Event::assertDispatchedTimes(LiveChangeBroadcast::class, 1);

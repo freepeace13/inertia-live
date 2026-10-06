@@ -77,7 +77,7 @@ public function onCommentAdded(CommentAdded $event): void
 
 Signature: `liveChanged(string $topic, array $props = [], bool $public = false)`.
 
-It is available on projectors using `EmitsLiveChanges` and is only active while a stored event is being handled: the version it records is that event's id. Calling it from anywhere else (a controller, a command) does nothing. It is also a no-op when `inertia-live.enabled` is `false`.
+It is available on projectors using `EmitsLiveChanges` and is only active while a stored event is being handled: it records a change for the topic, and the flusher assigns the version later. Calling it from anywhere else (a controller, a command) does nothing. It is also a no-op when `inertia-live.enabled` is `false`.
 
 ## Topic patterns and authorization
 

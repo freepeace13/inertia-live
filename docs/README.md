@@ -6,7 +6,7 @@ Inertia Live keeps Inertia pages in sync with [Spatie Event Sourcing](https://gi
 
 ```
 stored event ──► projector ──► ChangeBuffer ──► (after commit) ChangeFlusher ──► Echo/Reverb
-  #[LiveTopic]   EmitsLiveChanges   coalesce          cursor + rate limit          private-live.{topic}
+  #[LiveTopic]   EmitsLiveChanges   coalesce          sequence + rate limit         private-live.{topic}
                                                                                          │
 page props ◄── router.reload({ only }) ◄── debounce ◄── LiveClient (drops stale versions)
 ```
@@ -23,6 +23,7 @@ The socket never carries model data. Policies, hidden attributes and per-user fi
 | [Page bindings](bindings.md) | `->live()` on Inertia responses and the `_live` prop |
 | [Authorization](authorization.md) | `Live::authorize()`, private and public topics, fail-closed rules |
 | [Consistency](consistency.md) | Versions, cursors, ordering, debouncing and reconnects |
+| [Design decisions](design-decisions.md) | Why versions are per-topic sequences, and what that costs |
 | [Configuration](configuration.md) | Every `config/inertia-live.php` key |
 | [Client core](client-core.md) | `LiveClient`, the framework-agnostic API, Echo and connection types |
 | [Vue 3](vue.md) | `InertiaLive` plugin and `useLive()` |

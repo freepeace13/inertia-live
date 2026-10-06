@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import { type Plugin, watch } from 'vue'
 import {
   type ConnectionLike,
@@ -6,6 +6,7 @@ import {
   LiveClient,
   type LiveProp,
   type Reloader,
+  withSocketId,
 } from '../core/index.js'
 import { LIVE_CLIENT_KEY } from './key.js'
 import { inertiaReloader } from './reloader.js'
@@ -17,6 +18,8 @@ export interface InertiaLiveOptions {
   debounceMs?: number
   /** Override connection observation for non-Pusher Echo drivers. */
   connection?: ConnectionLike
+  /** Longest a steady signal stream can postpone a reload. Default `debounceMs * 4`. */
+  maxWaitMs?: number
   /** Replace the default `router.reload` based reloader (mainly for tests). */
   reload?: Reloader
   /** Called when a live reload fails. */
@@ -33,6 +36,7 @@ export const InertiaLive: Plugin<[InertiaLiveOptions]> = {
       echo: options.echo,
       reload: options.reload ?? inertiaReloader,
       debounceMs: options.debounceMs,
+      maxWaitMs: options.maxWaitMs,
       connection: options.connection,
       onError: options.onError,
     })
@@ -47,11 +51,19 @@ export const InertiaLive: Plugin<[InertiaLiveOptions]> = {
       { immediate: true },
     )
 
+    // Let the server skip the sender's own signal, and drop pauses left over from the old page.
+    const stopBefore = router.on('before', (event) =>
+      withSocketId(options.echo, event.detail.visit.headers),
+    )
+    const stopNavigate = router.on('navigate', () => client.resetPause())
+
     app.provide(LIVE_CLIENT_KEY, client)
 
     const unmount = app.unmount.bind(app)
     app.unmount = () => {
       stop()
+      stopBefore()
+      stopNavigate()
       client.destroy()
       unmount()
     }

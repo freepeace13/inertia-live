@@ -54,7 +54,7 @@ return Inertia::render('Documents/Show', [...])
 | `topic` | Topic name |
 | `channel` | `{channel_prefix}.{topic}`, the name passed to Echo |
 | `props` | Props to reload when the topic changes |
-| `cursor` | Last version applied to the topic's read model at render time |
+| `cursor` | The topic's latest sequence number at render time; signals at or below it are already reflected |
 | `public` | Whether to use a public channel |
 
 Details worth knowing:

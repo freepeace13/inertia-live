@@ -236,7 +236,7 @@ describe('reloading', () => {
     fake.emit('documents.a', 1)
     await vi.advanceTimersByTimeAsync(150)
     fake.emit('documents.a', 2)
-    await vi.advanceTimersByTimeAsync(150)
+    await vi.advanceTimersByTimeAsync(1000) // the failed props and the new signal retry together
 
     expect(onError).toHaveBeenCalledTimes(1)
     expect(calls).toBe(2)
@@ -380,5 +380,138 @@ describe('destroy', () => {
 
     expect(fake.reloads).toEqual([])
     expect(fake.joined.size).toBe(0)
+  })
+})
+
+describe('silent-stale guards', () => {
+  it('reloads within maxWaitMs even while signals keep arriving', async () => {
+    const { fake, client } = setup({ debounceMs: 150 })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    for (let version = 1; version <= 100; version++) {
+      fake.emit('documents.a', version)
+      await vi.advanceTimersByTimeAsync(100)
+    }
+
+    expect(fake.reloads.length).toBeGreaterThanOrEqual(10)
+  })
+
+  it('re-queues props and retries with backoff when a reload fails', async () => {
+    const fake = createFakeLive()
+    const errors: unknown[] = []
+    let attempts = 0
+    const client = new LiveClient({
+      echo: fake.echo,
+      debounceMs: 0,
+      onError: (error) => errors.push(error),
+      reload: async (only) => {
+        attempts += 1
+        if (attempts === 1) throw new Error('boom')
+        fake.reloads.push(only)
+      },
+    })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1)
+    await vi.advanceTimersByTimeAsync(0)
+    expect(errors).toHaveLength(1)
+    expect(fake.reloads).toEqual([])
+
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('gives up after repeated failures', async () => {
+    const fake = createFakeLive()
+    let attempts = 0
+    const client = new LiveClient({
+      echo: fake.echo,
+      debounceMs: 0,
+      reload: async () => {
+        attempts += 1
+        throw new Error('down')
+      },
+    })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1)
+    await vi.advanceTimersByTimeAsync(120_000)
+
+    expect(attempts).toBe(6)
+  })
+
+  it('re-reads _live on subscription and reloads props if the cursor moved', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'], 1)))
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([['_live']])
+
+    // The _live-only reload comes back with a newer cursor: a signal was missed.
+    client.sync(page(binding('documents.a', ['document'], 2)))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.reloads).toEqual([['_live'], ['document']])
+  })
+
+  it('does not reload props when the cursor did not move after subscribing', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'], 1)))
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(0)
+    client.sync(page(binding('documents.a', ['document'], 1)))
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.reloads).toEqual([['_live']])
+  })
+})
+
+describe('pause and reconnect', () => {
+  it('counts pauses: reloads wait for every holder to release', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    const releaseA = client.pause()
+    const releaseB = client.pause()
+    fake.emit('documents.a', 1)
+
+    releaseA()
+    releaseA() // releasing twice must not release B's hold
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([])
+
+    releaseB()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('resetPause releases every hold and flushes the queue', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    client.pause()
+    client.pause()
+    fake.emit('documents.a', 1)
+    client.resetPause()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('queues the reconnect reload while paused instead of overwriting a form', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'])))
+    fake.setConnectionState('unavailable')
+
+    const release = client.pause()
+    fake.setConnectionState('connected')
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([])
+
+    release()
+    await vi.advanceTimersByTimeAsync(0)
+    expect(fake.reloads).toEqual([['document']])
   })
 })

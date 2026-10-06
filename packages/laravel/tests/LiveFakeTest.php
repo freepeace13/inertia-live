@@ -3,7 +3,9 @@
 declare(strict_types=1);
 
 use Freepeace13\InertiaLive\Broadcasting\LiveChangeBroadcast;
+use Freepeace13\InertiaLive\ChangeFlusher;
 use Freepeace13\InertiaLive\Facades\Live;
+use Freepeace13\InertiaLive\LiveManager;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentProjector;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentRenamed;
 use Illuminate\Support\Facades\Event;
@@ -65,4 +67,17 @@ it('still delegates authorizers while faked', function () {
     Live::authorize('documents.{uuid}', fn () => true);
 
     expect(Live::hasAuthorizerFor('documents.abc'))->toBeTrue();
+});
+
+it('can be faked more than once and leaves the real manager resolvable', function () {
+    $first = Live::fake();
+    $second = Live::fake();
+
+    expect($second)->not->toBe($first)
+        ->and(app(LiveManager::class))->toBeInstanceOf(LiveManager::class)
+        ->and(app(ChangeFlusher::class))->toBeInstanceOf(ChangeFlusher::class);
+
+    $this->post('/rename');
+
+    Live::assertChanged('documents.abc');
 });

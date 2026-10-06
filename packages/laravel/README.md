@@ -45,7 +45,7 @@ final class DocumentRenamed extends ShouldBeStored
 }
 ```
 
-`{placeholders}` are filled from the event's scalar properties. The attribute is repeatable and accepts `public: true` for public channels. See [Topics](../../docs/topics.md).
+`{placeholders}` are filled from the event's scalar properties. The attribute is repeatable and is private unless its pattern is registered with `Live::publicTopic()`. See [Topics](../../docs/topics.md).
 
 ### 2. Mark changes in projectors
 
@@ -96,9 +96,9 @@ return Inertia::render('Documents/Show', [
 | `TopicResolver` | Resolves topic templates against event properties |
 | `Concerns\EmitsLiveChanges` | Projector trait that records changes after handlers return |
 | `ChangeBuffer` / `ReplayBuffer` | Coalesce changes per topic; hold changes during replays |
-| `ChangeFlusher` | After commit: record cursor, check authorizer, rate limit, broadcast |
+| `ChangeFlusher` | After commit: take the next sequence number, check authorizer, rate limit, broadcast |
 | `Broadcasting\LiveChangeBroadcast` | `ShouldBroadcastNow` event named `live.changed`, payload `{ topic, version, props }` |
-| `Cursor\CursorRepository` | Last applied version per topic (default: cache store) |
+| `Cursor\CursorRepository` | Per-topic sequence numbers (default: cache store, needs atomic increment) |
 | `LiveManager` / `Facades\Live` | `Live::authorize()` and the test fake |
 | `LiveResponseMacro` / `LiveBindings` | `Inertia\Response::live()` and the `_live` prop |
 | `Testing\LiveFake` | Recorder installed by `Live::fake()` |
@@ -108,13 +108,15 @@ return Inertia::render('Documents/Show', [
 | Risk | Rule |
 | --- | --- |
 | Signal before data is committed | Flushed in `DB::afterCommit`, after the projector handler returns |
-| Queued projectors lag | Version is the stored event id the projector just applied |
-| Render races a signal | Cursor is the last applied version; the client drops signals at or below it |
+| Queued or several projectors on a topic | Each signal takes the topic's next sequence number, so none is dropped as stale |
+| Render races a signal | Cursor is the topic's latest sequence number; the client drops signals at or below it |
 | Event bursts | One signal per topic per request or job |
-| Sender's own action | Sender's socket is excluded via `X-Socket-ID` |
-| Projector replay | Signals suppressed; optional single final signal per topic |
+| Sender's own action | Excluded via `X-Socket-ID`, which the client adapters send |
+| Projector replay | Signals suppressed; optional final signal per topic |
+| Rate limit | Over `max_signals_per_second`, signals collapse into one trailing signal (needs a queue worker) |
+| Rolled-back transaction | Its changes are discarded, nothing is broadcast |
 
-Signals are capped per topic by `max_signals_per_second`. A dropped signal is not retried, though the cursor still advances. See [Consistency](../../docs/consistency.md).
+The cursor store needs atomic `increment` (Redis, database, Memcached). See [Consistency](../../docs/consistency.md) and [Design decisions](../../docs/design-decisions.md).
 
 ## Configuration
 

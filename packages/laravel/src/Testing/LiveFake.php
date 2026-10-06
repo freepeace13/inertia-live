@@ -34,6 +34,16 @@ final class LiveFake implements FlushesChanges
         $this->manager->authorize($pattern, $callback);
     }
 
+    public function publicTopic(string $pattern): void
+    {
+        $this->manager->publicTopic($pattern);
+    }
+
+    public function isPublic(string $topic): bool
+    {
+        return $this->manager->isPublic($topic);
+    }
+
     public function hasAuthorizerFor(string $topic): bool
     {
         return $this->manager->hasAuthorizerFor($topic);

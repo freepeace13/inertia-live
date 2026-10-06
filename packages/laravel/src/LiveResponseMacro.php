@@ -6,6 +6,7 @@ namespace Freepeace13\InertiaLive;
 
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 use WeakMap;
 
 /**
@@ -15,17 +16,22 @@ final class LiveResponseMacro
 {
     public static function register(): void
     {
-        Response::macro('live', function (string $topic, array $only = [], bool $public = false): Response {
+        Response::macro('live', function (string $topic, array $only): Response {
             /** @var Response $this */
-            return LiveResponseMacro::bind($this, $topic, $only, $public);
+            return LiveResponseMacro::bind($this, $topic, $only);
         });
     }
 
     /**
      * @param  list<string>  $only
      */
-    public static function bind(Response $response, string $topic, array $only, bool $public): Response
+    public static function bind(Response $response, string $topic, array $only): Response
     {
+        // An empty list would bind nothing: the page would subscribe but never reload.
+        if ($only === []) {
+            throw new InvalidArgumentException("live('{$topic}') needs `only`: the props that depend on this topic.");
+        }
+
         /** @var WeakMap<Response, LiveBindings>|null $registry */
         static $registry = null;
         $registry ??= new WeakMap;
@@ -37,7 +43,7 @@ final class LiveResponseMacro
             $response->with('_live', Inertia::always($registry[$response]));
         }
 
-        $registry[$response]->add($topic, array_values($only), $public);
+        $registry[$response]->add($topic, array_values($only));
 
         return $response;
     }

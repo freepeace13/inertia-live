@@ -8,7 +8,7 @@ use Illuminate\Broadcasting\Channel;
 use Illuminate\Broadcasting\PrivateChannel;
 
 it('broadcasts on a private channel by default', function () {
-    $broadcast = new LiveChangeBroadcast(new Change('documents.abc', 12, ['document']));
+    $broadcast = new LiveChangeBroadcast(new Change('documents.abc', ['document']), 12);
     $channel = $broadcast->broadcastOn();
 
     expect($channel)->toBeInstanceOf(PrivateChannel::class)
@@ -17,7 +17,7 @@ it('broadcasts on a private channel by default', function () {
 });
 
 it('broadcasts on a public channel when the topic is public', function () {
-    $channel = (new LiveChangeBroadcast(new Change('workspaces.1', 1, [], public: true)))->broadcastOn();
+    $channel = (new LiveChangeBroadcast(new Change('workspaces.1'), 1, public: true))->broadcastOn();
 
     expect($channel)->toBeInstanceOf(Channel::class)
         ->and($channel)->not->toBeInstanceOf(PrivateChannel::class)
@@ -27,12 +27,12 @@ it('broadcasts on a public channel when the topic is public', function () {
 it('honours a custom channel prefix', function () {
     config(['inertia-live.channel_prefix' => 'pulse']);
 
-    expect((new LiveChangeBroadcast(new Change('documents.abc', 1)))->broadcastOn()->name)
+    expect((new LiveChangeBroadcast(new Change('documents.abc'), 1))->broadcastOn()->name)
         ->toBe('private-pulse.documents.abc');
 });
 
 it('carries only topic, version and prop keys', function () {
-    $payload = (new LiveChangeBroadcast(new Change('documents.abc', 12, ['document', 'activity'])))->broadcastWith();
+    $payload = (new LiveChangeBroadcast(new Change('documents.abc', ['document', 'activity']), 12))->broadcastWith();
 
     expect($payload)->toBe(['topic' => 'documents.abc', 'version' => 12, 'props' => ['document', 'activity']]);
 });

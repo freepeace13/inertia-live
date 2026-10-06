@@ -7,6 +7,7 @@ namespace Freepeace13\InertiaLive;
 use Freepeace13\InertiaLive\Contracts\FlushesChanges;
 use Freepeace13\InertiaLive\Cursor\CacheCursorRepository;
 use Freepeace13\InertiaLive\Cursor\CursorRepository;
+use Illuminate\Database\Events\TransactionRolledBack;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\ServiceProvider;
@@ -15,6 +16,8 @@ use Spatie\EventSourcing\Events\FinishedEventReplay;
 
 final class InertiaLiveServiceProvider extends ServiceProvider
 {
+    private const OCTANE_REQUEST_TERMINATED = 'Laravel\\Octane\\Events\\RequestTerminated';
+
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/inertia-live.php', 'inertia-live');
@@ -26,9 +29,14 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $this->app->bind(FlushesChanges::class, ChangeFlusher::class);
         $this->app->singleton(LiveManager::class);
         $this->app->bind(LiveBindings::class);
-        $this->app->singleton(CursorRepository::class, fn ($app) => new CacheCursorRepository(
-            $app['cache']->store($app['config']->get('inertia-live.cursor_store')),
-        ));
+        $this->app->singleton(CursorRepository::class, function ($app) {
+            $ttl = $app['config']->get('inertia-live.cursor_ttl');
+
+            return new CacheCursorRepository(
+                $app['cache']->store($app['config']->get('inertia-live.cursor_store')),
+                $ttl === null ? null : (int) $ttl,
+            );
+        });
     }
 
     public function boot(): void
@@ -51,7 +59,9 @@ final class InertiaLiveServiceProvider extends ServiceProvider
      */
     private function registerFlushPoints(): void
     {
-        $flush = fn () => $this->app->make(FlushesChanges::class)->flush();
+        // Resolve through `app()` rather than `$this->app`: under Octane the provider keeps the
+        // worker's base container while requests run in sandboxes, and the buffer is a singleton.
+        $flush = fn () => app(FlushesChanges::class)->flush();
 
         $this->app->terminating($flush);
 
@@ -59,12 +69,25 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $events->listen(JobProcessed::class, $flush);
         $events->listen(JobFailed::class, $flush);
 
+        // A rolled-back transaction undid the read-model writes its changes describe.
+        $events->listen(TransactionRolledBack::class, function (TransactionRolledBack $event): void {
+            app(ChangeBuffer::class)->rollBackTo($event->connection->transactionLevel());
+        });
+
+        // Octane (untested): flush against the request's own container. Flushing twice is harmless.
+        if (class_exists(self::OCTANE_REQUEST_TERMINATED)) {
+            $events->listen(self::OCTANE_REQUEST_TERMINATED, function (object $event): void {
+                /** @phpstan-ignore-next-line */
+                $event->sandbox->make(FlushesChanges::class)->flush();
+            });
+        }
+
         // After a replay, optionally emit one signal per touched topic.
         $events->listen(FinishedEventReplay::class, function () use ($flush): void {
-            $changes = $this->app->make(ReplayBuffer::class)->drain();
+            $changes = app(ReplayBuffer::class)->drain();
 
             foreach ($changes as $change) {
-                $this->app->make(ChangeBuffer::class)->add($change);
+                app(ChangeBuffer::class)->add($change);
             }
 
             $flush();

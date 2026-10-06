@@ -1,4 +1,4 @@
-import { usePage } from '@inertiajs/react'
+import { router, usePage } from '@inertiajs/react'
 import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import {
   type ConnectionLike,
@@ -6,6 +6,7 @@ import {
   LiveClient,
   type LiveProp,
   type Reloader,
+  withSocketId,
 } from '../core/index.js'
 import { LiveContext } from './context.js'
 import { inertiaReloader } from './reloader.js'
@@ -17,6 +18,8 @@ export interface InertiaLiveProviderProps {
   debounceMs?: number
   /** Override connection observation for non-Pusher Echo drivers. */
   connection?: ConnectionLike
+  /** Longest a steady signal stream can postpone a reload. Default `debounceMs * 4`. */
+  maxWaitMs?: number
   /** Replace the default `router.reload` based reloader (mainly for tests). */
   reload?: Reloader
   /** Called when a live reload fails. */
@@ -31,6 +34,7 @@ export interface InertiaLiveProviderProps {
 export function InertiaLiveProvider({
   echo,
   debounceMs,
+  maxWaitMs,
   connection,
   reload,
   onError,
@@ -48,17 +52,26 @@ export function InertiaLiveProvider({
     const created = new LiveClient({
       echo,
       debounceMs,
+      maxWaitMs,
       connection,
       reload: (only) => (latest.current.reload ?? inertiaReloader)(only),
       onError: (error) => latest.current.onError?.(error),
     })
     setClient(created)
 
+    // Let the server skip the sender's own signal, and drop pauses left over from the old page.
+    const stopBefore = router.on('before', (event) =>
+      withSocketId(echo, event.detail.visit.headers),
+    )
+    const stopNavigate = router.on('navigate', () => created.resetPause())
+
     return () => {
+      stopBefore()
+      stopNavigate()
       created.destroy()
       setClient(null)
     }
-  }, [echo, debounceMs, connection])
+  }, [echo, debounceMs, maxWaitMs, connection])
 
   // `_live` is a new object on every navigation and reload, so this keeps
   // subscriptions and cursors in step with whatever page is showing.

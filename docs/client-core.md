@@ -13,8 +13,8 @@ const client = new LiveClient({
 
 client.sync(page.props._live) // on every navigation
 client.afterReload(page.props._live) // after every reload
-client.pause() // while a form is being edited
-client.resume()
+const release = client.pause() // while a form is being edited
+release()
 ```
 
 ## Options
@@ -25,7 +25,8 @@ client.resume()
 | `reload` | `Reloader` | required | `(only: string[]) => Promise<void>`. Must resolve when the reload finishes |
 | `debounceMs` | `number` | `150` | Quiet window before reloading. `0` reloads immediately |
 | `connection` | `ConnectionLike` | Echo's Pusher connection | Override connection observation for other drivers |
-| `onError` | `(error) => void` | none | Called when `reload` rejects. Queued props are not retried |
+| `maxWaitMs` | `number` | `debounceMs * 4` | Longest a steady stream of signals can postpone a reload |
+| `onError` | `(error) => void` | none | Called each time `reload` rejects. The props are re-queued and retried with backoff (1 s doubling to 30 s, 5 retries) |
 
 ## Methods and properties
 
@@ -33,8 +34,9 @@ client.resume()
 | --- | --- |
 | `sync(liveProp)` | Make subscriptions match `page.props._live`: join new channels, leave removed ones, raise cursors. Safe to call repeatedly. Accepts `undefined`/`null` (leaves everything) |
 | `afterReload(liveProp)` | Raise cursors from a fresh `_live` and mark the client synced |
-| `pause()` | Hold reloads and cancel the pending timer. Signals still queue |
-| `resume()` | Resume; schedules a reload if anything queued while paused |
+| `pause()` | Hold reloads and cancel the pending timer. Signals still queue. Counted; returns a function that releases this pause (once) |
+| `resume()` | Release one pause; schedules a reload once none remain and something queued |
+| `resetPause()` | Release every pause. The adapters call it on navigation |
 | `refresh()` | Reload every bound prop now, clearing the queue. Returns a promise |
 | `destroy()` | Leave all channels, clear timers and listeners. The client is unusable afterwards |
 | `status` | `'connecting' \| 'live' \| 'reconnecting' \| 'offline'` |
@@ -45,11 +47,12 @@ client.resume()
 ## What happens on a signal
 
 1. Echo delivers `.live.changed` on `{channel}`. The leading dot is because the server uses `broadcastAs()`.
-2. `CursorStore.accept(topic, version)`: stale versions (`<= cursor`) are dropped.
+2. `CursorStore.accept(topic, version)`: stale versions (`<= cursor`) are dropped, .
 3. The affected props are the signal's `props` intersected with the binding's `props`. A signal with no props means "unknown" and affects every bound prop. No affected props means no reload.
-4. Affected props join a pending set and a debounce timer starts (restarted by each new signal).
+4. Affected props join a pending set and a debounce timer starts (restarted by each new signal, but never delayed past `maxWaitMs` since the first).
 5. When it fires, one `reload(props)` runs with the union of pending props.
 6. If more signals arrived while reloading, one follow-up reload runs after it finishes. Paused clients wait for `resume()`.
+7. When a channel's subscription is confirmed (`subscribed`), the client re-reads `_live` alone. If a binding's cursor is ahead of what the client knew, a signal slipped in between render and subscribe, so that binding's props reload.
 
 ## Connection tracking
 

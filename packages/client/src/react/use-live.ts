@@ -1,4 +1,4 @@
-import { useCallback, useContext, useSyncExternalStore } from 'react'
+import { useCallback, useContext, useEffect, useRef, useSyncExternalStore } from 'react'
 import type { LiveStatus } from '../core/index.js'
 import { LiveContext } from './context.js'
 
@@ -24,6 +24,16 @@ export function useLive(): UseLive {
 
   const { client } = context
 
+  // Pauses held by this component only: resume() never releases another component's pause,
+  // and they are all released when this component unmounts.
+  const held = useRef<Array<() => void>>([])
+  useEffect(
+    () => () => {
+      held.current.splice(0).forEach((release) => release())
+    },
+    [client],
+  )
+
   const subscribeStatus = useCallback(
     (notify: () => void) => (client ? client.onStatus(notify) : noopSubscribe()),
     [client],
@@ -47,8 +57,12 @@ export function useLive(): UseLive {
   return {
     status,
     lastSyncedAt,
-    pause: useCallback(() => client?.pause(), [client]),
-    resume: useCallback(() => client?.resume(), [client]),
+    pause: useCallback(() => {
+      if (client) held.current.push(client.pause())
+    }, [client]),
+    resume: useCallback(() => {
+      held.current.pop()?.()
+    }, [client]),
     refresh: useCallback(async () => client?.refresh(), [client]),
   }
 }

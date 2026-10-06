@@ -32,24 +32,18 @@ The cursor is still recorded. Register an authorizer for every private topic pat
 
 ## Public topics
 
-Mark a topic public when anyone, including guests, may know that it changed:
+Visibility belongs to the topic *pattern*, registered once, so the attribute, the `->live()` binding and the broadcast can never disagree:
 
 ```php
-#[LiveTopic('stats.global', props: ['stats'], public: true)]
+Live::publicTopic('stats.global');
 ```
 
-and bind it publicly:
-
-```php
-->live('stats.global', only: ['stats'], public: true)
-```
-
-Public topics use `Echo.channel()` and skip authorizers. The payload is still data-free. Keep the `public` flag consistent between the attribute and `->live()`: it decides which channel type the server broadcasts on and the client subscribes to.
+Public topics use `Echo.channel()` and skip authorizers. The payload is still data-free. Registering one pattern as both public and private throws. A topic with no registration is private, and fails closed until you add an authorizer.
 
 ## Checklist
 
-- Use UUIDs in topics, never sequential IDs, to prevent enumeration.
+- Use UUIDs in topics, never sequential IDs, to prevent enumeration. Nothing enforces this; it is a convention. Placeholder values are validated though: only letters, digits and `_-=@,;` are accepted (no dots), otherwise resolving the topic throws.
 - Authorize with the same policy your controller uses.
 - Never put sensitive values in topic names; they are visible on the wire.
-- Leave `max_signals_per_second` set; it protects clients and the broadcaster from runaway loops.
+- Leave `max_signals_per_second` set; it protects clients and the broadcaster from runaway loops. Excess signals collapse into one trailing signal, so they are delayed, not lost.
 - Reloads hit your existing routes, so route middleware and policies apply unchanged.

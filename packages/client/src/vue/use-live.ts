@@ -23,6 +23,11 @@ export function useLive(): UseLive {
   const status = ref<LiveStatus>(client.status)
   const lastSyncedAt = ref<Date | null>(client.lastSyncedAt)
 
+  // Pauses held by this component only: resume() never releases another component's pause,
+  // and they are all released when this component goes away.
+  const held: Array<() => void> = []
+  const releaseAll = () => held.splice(0).forEach((release) => release())
+
   const stops = [
     client.onStatus((next) => {
       status.value = next
@@ -32,13 +37,21 @@ export function useLive(): UseLive {
     }),
   ]
 
-  if (getCurrentScope()) onScopeDispose(() => stops.forEach((stop) => stop()))
+  if (getCurrentScope())
+    onScopeDispose(() => {
+      stops.forEach((stop) => stop())
+      releaseAll()
+    })
 
   return {
     status,
     lastSyncedAt,
-    pause: () => client.pause(),
-    resume: () => client.resume(),
+    pause: () => {
+      held.push(client.pause())
+    },
+    resume: () => {
+      held.pop()?.()
+    },
     refresh: () => client.refresh(),
   }
 }

@@ -17,42 +17,42 @@ use Spatie\EventSourcing\StoredEvents\StoredEvent;
  *
  * Hook point: Spatie's `HandlesEvents::handle(StoredEvent)` invokes every matching
  * handler method. Overriding it in the projector lets us run after the read model is
- * written, and `$storedEvent->id` is the version the projector just applied.
+ * written. The signal's version is assigned later, by the flusher, not taken from the event.
  *
  * @phpstan-require-extends Projector
  */
 trait EmitsLiveChanges
 {
-    private ?int $liveVersion = null;
+    private bool $handlingLiveEvent = false;
 
     public function handle(StoredEvent $storedEvent): void
     {
-        $this->liveVersion = $storedEvent->id;
+        $this->handlingLiveEvent = true;
 
         try {
             parent::handle($storedEvent);
 
             foreach (app(TopicResolver::class)->forEvent($storedEvent->event) as $topic) {
-                $this->liveChanged($topic->topic, $topic->props, $topic->public);
+                $this->liveChanged($topic->topic, $topic->props);
             }
         } finally {
-            $this->liveVersion = null;
+            $this->handlingLiveEvent = false;
         }
     }
 
     /**
      * @param  list<string>  $props
      */
-    protected function liveChanged(string $topic, array $props = [], bool $public = false): void
+    protected function liveChanged(string $topic, array $props = []): void
     {
-        if ($this->liveVersion === null || ! config('inertia-live.enabled', true)) {
+        if (! $this->handlingLiveEvent || ! config('inertia-live.enabled', true)) {
             return;
         }
 
-        $change = new Change($topic, $this->liveVersion, $props, $public);
+        $change = new Change($topic, $props);
 
         if (app(Projectionist::class)->isReplaying() && config('inertia-live.replay.suppress', true)) {
-            // Replays touch every event; keep only the final state per topic if requested.
+            // Replays touch every event; keep only one change per topic if requested.
             if (config('inertia-live.replay.final_signal', false)) {
                 app(ReplayBuffer::class)->add($change);
             }
@@ -60,6 +60,7 @@ trait EmitsLiveChanges
             return;
         }
 
-        app(ChangeBuffer::class)->add($change);
+        // The transaction level lets a rollback discard changes whose read-model writes were undone.
+        app(ChangeBuffer::class)->add($change, app('db')->connection()->transactionLevel());
     }
 }

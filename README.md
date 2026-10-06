@@ -91,15 +91,17 @@ Both expose `useLive()` for `{ status, lastSyncedAt, pause, resume, refresh }`. 
 | Risk | Rule |
 | --- | --- |
 | Signal before data is committed | Flushed after the DB commit and the projector handler |
-| Queued projectors lag | Version is the stored event id the projector just applied |
+| Queued or several projectors on a topic | Each signal takes the topic's next sequence number, so none is dropped as stale |
 | Render races a signal | Client drops signals at or below the page's cursor |
 | Out-of-order delivery | Client keeps the max version per topic |
 | Event bursts | One signal per topic per request or job; one debounced reload |
 | WebSocket disconnect | One full reload of bound props on reconnect |
-| Sender's own action | Sender's socket excluded (`X-Socket-ID`) |
+| Sender's own action | Adapters send `X-Socket-ID`; the sender's socket is skipped |
 | Projector replay | Signals suppressed; optional final signal per topic |
+| Rate limit | Over the cap (`max_signals_per_second`, default 10) signals collapse into one trailing signal |
+| Rolled-back transaction | Its changes are discarded, nothing is broadcast |
 
-Signals are capped per topic (`max_signals_per_second`, default 10) and a dropped signal is not retried. Full model and limits: [Consistency](docs/consistency.md).
+The cursor store needs atomic `increment` (Redis, database, Memcached). Full model, limits and the costs of this design: [Consistency](docs/consistency.md) and [Design decisions](docs/design-decisions.md).
 
 ## Testing
 

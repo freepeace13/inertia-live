@@ -16,8 +16,11 @@ final class LiveChangeBroadcast implements ShouldBroadcastNow
     use Dispatchable;
     use InteractsWithSockets;
 
-    public function __construct(public readonly Change $change)
-    {
+    public function __construct(
+        public readonly Change $change,
+        public readonly int $version,
+        public readonly bool $public = false,
+    ) {
         // Skip the sender's own socket (X-Socket-ID); they already get fresh props from Inertia.
         $this->dontBroadcastToCurrentUser();
     }
@@ -26,7 +29,7 @@ final class LiveChangeBroadcast implements ShouldBroadcastNow
     {
         $name = config('inertia-live.channel_prefix', 'live').'.'.$this->change->topic;
 
-        return $this->change->public ? new Channel($name) : new PrivateChannel($name);
+        return $this->public ? new Channel($name) : new PrivateChannel($name);
     }
 
     public function broadcastAs(): string
@@ -43,7 +46,7 @@ final class LiveChangeBroadcast implements ShouldBroadcastNow
     {
         return [
             'topic' => $this->change->topic,
-            'version' => $this->change->version,
+            'version' => $this->version,
             'props' => $this->change->props,
         ];
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Freepeace13\InertiaLive\Broadcasting\LiveChangeBroadcast;
 use Freepeace13\InertiaLive\ChangeBuffer;
+use Freepeace13\InertiaLive\Cursor\CursorRepository;
 use Freepeace13\InertiaLive\Facades\Live;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentProjector;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentRenamed;
@@ -33,15 +34,16 @@ it('suppresses signals while replaying', function () {
     expect(app(ChangeBuffer::class)->isEmpty())->toBeTrue();
 });
 
-it('emits one final signal per topic after the replay when configured', function () {
+it('emits one final signal per topic after the replay, newer than any cursor pages hold', function () {
     config(['inertia-live.replay.final_signal' => true]);
+    $heldByOpenPages = app(CursorRepository::class)->next('documents.abc');
 
     Projectionist::replay(collect([app(DocumentProjector::class)]));
 
     Event::assertDispatchedTimes(LiveChangeBroadcast::class, 1);
     Event::assertDispatched(
         LiveChangeBroadcast::class,
-        fn (LiveChangeBroadcast $e) => $e->change->topic === 'documents.abc' && $e->change->version === 3,
+        fn (LiveChangeBroadcast $e) => $e->change->topic === 'documents.abc' && $e->version > $heldByOpenPages,
     );
 });
 

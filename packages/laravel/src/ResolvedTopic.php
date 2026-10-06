@@ -12,6 +12,5 @@ final readonly class ResolvedTopic
     public function __construct(
         public string $topic,
         public array $props,
-        public bool $public,
     ) {}
 }

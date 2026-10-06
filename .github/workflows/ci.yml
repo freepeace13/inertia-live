@@ -52,6 +52,21 @@ jobs:
       - run: composer update --prefer-dist --no-interaction
       - run: vendor/bin/pest
 
+  laravel-lowest:
+    runs-on: ubuntu-latest
+    name: Lowest supported dependencies
+    defaults:
+      run:
+        working-directory: packages/laravel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          coverage: none
+      - run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction
+      - run: vendor/bin/pest
+
   client:
     runs-on: ubuntu-latest
     strategy:
@@ -114,6 +129,10 @@ jobs:
           npx playwright install --with-deps chromium
           php artisan reverb:start --port=8080 &
           php artisan serve --port=8000 &
-          sleep 5
+          # Wait for both servers instead of sleeping a fixed time.
+          for i in $(seq 1 30); do
+            curl -s -o /dev/null http://localhost:8000 && nc -z localhost 8080 && break
+            sleep 1
+          done
           npm run e2e
           npm run e2e:browser

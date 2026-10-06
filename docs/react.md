@@ -29,6 +29,7 @@ A non-persistent layout still works but recreates the client on every navigation
 | --- | --- | --- |
 | `echo` | required | Your laravel-echo instance |
 | `debounceMs` | `150` | Debounce window; `0` reloads immediately |
+| `maxWaitMs` | `debounceMs * 4` | Longest a steady signal stream can postpone a reload |
 | `connection` | Pusher connection | Override connection observation for other drivers |
 | `reload` | `router.reload` based | Replace the reloader (mainly for tests) |
 | `onError` | none | Called when a live reload fails |
@@ -65,8 +66,8 @@ function LiveBadge() {
 | --- | --- |
 | `status` | `'connecting' \| 'live' \| 'reconnecting' \| 'offline'` |
 | `lastSyncedAt` | `Date \| null` |
-| `pause()` | Hold reloads; signals keep queueing |
-| `resume()` | Flush anything queued while paused |
+| `pause()` | Hold reloads; signals keep queueing. Scoped to this component: released on unmount and on navigation |
+| `resume()` | Release this component's latest pause and flush anything queued |
 | `refresh()` | Reload every live prop now; returns a promise |
 
 State is built on `useSyncExternalStore`. `useLive()` throws if used outside `<InertiaLiveProvider>`.

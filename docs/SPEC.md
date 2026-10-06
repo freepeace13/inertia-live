@@ -50,9 +50,9 @@ v1 ships the **invalidate** model only: the socket carries a tiny "topic changed
 **Vocabulary**
 
 - **Topic** — a named stream of changes for one read model or aggregate, e.g. `documents.9f1c…`. Maps 1:1 to a broadcast channel.
-- **Change signal** — the broadcast payload: topic, aggregate version, affected prop keys. Never contains model data.
+- **Change signal** — the broadcast payload: topic, per-topic sequence number, affected prop keys. Never contains model data.
 - **Live binding** — a page's declaration that props `['document', 'comments']` depend on topic `documents.{id}`.
-- **Cursor** — the last version a page has seen per topic, sent with the initial props.
+- **Cursor** — the latest sequence number a page has seen per topic, sent with the initial props.
 
 **Update models compared**
 
@@ -76,7 +76,7 @@ The signal carries only topic, version and prop keys; the page's data always com
 1. A command handler calls the aggregate root, which records `DocumentRenamed`.
 2. Spatie persists it to `stored_events` and dispatches it to projectors (sync or queued).
 3. `DocumentProjector` updates the read model; the `EmitsLiveChanges` hook adds `documents.{uuid}` with the event's id to `ChangeBuffer`.
-4. After the transaction commits, `ChangeFlusher` writes the version to the cursor store and broadcasts one `LiveChangeBroadcast` per topic, excluding the sender's socket.
+4. After the transaction commits, `ChangeFlusher` takes the topic's next sequence number from the cursor store and broadcasts one `LiveChangeBroadcast` per topic, excluding the sender's socket.
 5. Reverb delivers it on `private-live.documents.{uuid}` to every authorized subscriber.
 6. `LiveClient` drops it if the version is at or below the page's cursor; otherwise it queues the signal's affected props that the page binds (every bound prop if the signal lists none).
 7. After 150 ms the client calls `router.reload({ only: ['document', 'activity'] })`.
@@ -130,17 +130,17 @@ return Inertia::render('Documents/Show', [
 ])->live("documents.{$doc->uuid}", only: ['document', 'activity']);
 ```
 
-`->live()` adds a shared `_live` prop: `{ bindings: [{ topic, channel, props, cursor }] }`. The cursor is the last version applied to the topic's read model (see Consistency rules).
+`->live()` adds a shared `_live` prop: `{ bindings: [{ topic, channel, props, cursor }] }`. The cursor is the topic's latest sequence number (see Consistency rules and [Design decisions](design-decisions.md)).
 
 **Core server classes**
 
 | Class | Responsibility |
 | --- | --- |
 | `TopicResolver` | Resolves `#[LiveTopic]` templates against event properties |
-| `ChangeBuffer` | Collects changes per request or job; coalesces by topic, keeps highest version |
+| `ChangeBuffer` | Collects changes per request or job; coalesces by topic, unions props |
 | `ChangeFlusher` | Flushes the buffer after DB commit (request end, or queue job processed) |
 | `LiveChangeBroadcast` | The `ShouldBroadcastNow` event sent on `private-live.{topic}`; excludes the sender's socket |
-| `CursorRepository` | Stores and reads the last applied version per topic (default: cache store) |
+| `CursorRepository` | Issues and reads per-topic sequence numbers (default: cache store, needs atomic increment) |
 | `LiveResponseMacro` | Registers `->live()` on `Inertia\Response` |
 
 ## Client-side API (Vue 3 and React)
@@ -208,23 +208,23 @@ The core guarantee: a page never ends up older than the last change signal it re
 | Risk | Rule |
 | --- | --- |
 | Signal arrives before data is committed | Flush only after the DB transaction commits (`DB::afterCommit`), and only after the projector handler returns |
-| Queued projectors lag behind the event store | Version = stored event id that the projector just applied, not the latest id in the store |
-| Page renders between projection and signal (race) | Cursor = last *applied* version per topic, written by `ChangeFlusher` to cache on every flush; render reads it, client drops signals with `version <= cursor` |
+| Queued or several projectors on one topic | Version = the topic's next sequence number, taken by `ChangeFlusher` after commit; every signal is newer than the last, so none is dropped as stale |
+| Page renders between projection and signal (race) | The number is issued at flush; render reads it as the cursor, client drops signals with `version <= cursor` |
 | Out-of-order delivery | Client keeps max version per topic; older signals are ignored |
 | Burst of events (e.g. 50 in one command) | `ChangeBuffer` coalesces to one signal per topic per request/job; client debounces 150 ms across topics into one reload |
 | WebSocket disconnect | On reconnect, client does one reload of all bound props, since signals may have been missed |
 | Sender's own action | Broadcast uses `toOthers()` via the `X-Socket-ID` header; the sender already sees fresh props from the Inertia redirect |
 | Replaying projectors (`event-sourcing:replay`) | Signals are suppressed while `Projectionist::isReplaying()`; one final signal per topic is optional via config |
 
-**Why the cursor lives in cache, not the event store.** Reading `max(id)` from `stored_events` at render time would include events a queued projector has not applied yet. A later signal for that event would then be dropped as stale, leaving the page out of date. Recording the version at flush time ties the cursor to what the read model actually contains.
+**Why the version is a sequence, not the event id.** Using the stored event id as the version dropped signals whenever two projectors, or concurrent queue workers, handled the same topic. A per-topic sequence taken at flush time never repeats. Costs and alternatives: [Design decisions](design-decisions.md).
 
-**Cache loss** (cursor missing) falls back to cursor 0, which only causes harmless extra reloads.
+**Cache loss** restarts a topic's counter from the clock (microseconds), above every earlier number, so open pages keep accepting signals.
 
 ## Security
 
 The socket never carries data, so the worst case of a misconfigured channel is leaking that *something* changed, not what.
 
-- **Private channels by default.** Every topic maps to `private-live.{topic}`. Public topics are opt-in per attribute (`public: true`).
+- **Private channels by default.** Every topic maps to `private-live.{topic}`. Public topics are opt-in per topic pattern (`Live::publicTopic('stats.{id}')`).
 - **Authorization via policies.** Topics register an authorizer in config or a service provider:
 
 ```php
@@ -235,7 +235,7 @@ Live::authorize('documents.{uuid}', fn (User $user, string $uuid) =>
 
 - **Data still goes through the controller.** The reload hits the same route with the user's session, so policies, hidden attributes and per-user fields apply as usual.
 - **No topic enumeration.** Topics use UUIDs, never sequential IDs.
-- **Rate limits.** The flusher caps signals per topic per second (default 10) to protect clients and the broadcaster from runaway loops.
+- **Rate limits.** The flusher caps signals per topic per second (default 10) to protect clients and the broadcaster from runaway loops. Excess signals are not discarded: they collapse into one trailing signal at the end of the window.
 - **Unbound topics are denied.** An authorizer is required for every private topic pattern; a missing one fails closed with a logged warning.
 
 ## Configuration, testing and layout
@@ -282,7 +282,7 @@ inertia-live/
 │       ├── src/vue/      # plugin + useLive
 │       ├── src/react/    # InertiaLiveProvider + useLive
 │       └── tests/        # Vitest
-├── demo/                 # Laravel 13 + Vue demo app
+├── demo/                 # Laravel 13 demo app (Vue and React frontends)
 └── .github/workflows/    # matrix: PHP 8.3-8.5 x Laravel 12-13 x Inertia 2-3
 ```
 
@@ -295,7 +295,7 @@ Ship v0.1 as soon as M2 passes; a small, tagged, documented release beats a comp
 3. **M3 — Correctness (1 week).** Cursors, stale-signal dropping, reconnect reload, replay suppression, rate limit. Exit: tests for each row of Consistency rules.
 4. **M4 — React adapter (about 1 week).** `InertiaLiveProvider`, `useLive()` hook, fake helper, StrictMode-safe lifecycle, no changes to `LiveClient`. Exit: the same adapter tests as Vue pass, plus a StrictMode test.
 5. **M5 — Developer experience (1 week).** `Live::fake()`, Vitest fakes, README with a 5-minute quick start for Vue and React, Laravel 12/13 x Inertia 2/3 CI matrix. **Tag v1.0, publish to Packagist and npm.**
-6. **M6 — Demo app and launch.** The hiring-screening chat (real-time candidate threads, AI bot participants) deployed with a public URL; write-up on Laravel News or dev.to; LinkedIn post.
+6. **M6 — Demo app and launch (not started; the current demo is the document page, not the chat).** The hiring-screening chat (real-time candidate threads, AI bot participants) deployed with a public URL; write-up on Laravel News or dev.to; LinkedIn post.
 7. **Later.** Opt-in push mode, presence, Svelte adapter.
 
 **Open questions**

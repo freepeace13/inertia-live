@@ -8,7 +8,6 @@ use Freepeace13\InertiaLive\Tests\Fixtures\DocumentProjector;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentRenamed;
 use Freepeace13\InertiaLive\Tests\Fixtures\PlainEvent;
 use Spatie\EventSourcing\Facades\Projectionist;
-use Spatie\EventSourcing\StoredEvents\Models\EloquentStoredEvent;
 
 beforeEach(function () {
     DocumentProjector::$fail = false;
@@ -16,14 +15,12 @@ beforeEach(function () {
     Projectionist::addProjector(DocumentProjector::class);
 });
 
-it('buffers the topic with the stored event id after the handler returns', function () {
+it('buffers the topic after the handler returns', function () {
     event(new DocumentRenamed('abc', 'Q4'));
-
-    $id = EloquentStoredEvent::query()->max('id');
 
     expect(DocumentProjector::$handled)->toBe(['abc'])
         ->and(app(ChangeBuffer::class)->drain())->toEqual([
-            new Change('documents.abc', $id, ['document', 'activity']),
+            new Change('documents.abc', ['document', 'activity']),
         ]);
 });
 

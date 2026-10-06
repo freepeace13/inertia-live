@@ -7,6 +7,9 @@
   "files": [
     "dist"
   ],
+  "publishConfig": {
+    "access": "public"
+  },
   "exports": {
     ".": {
       "types": "./dist/core/index.d.ts",
@@ -35,6 +38,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
     "lint": "biome check .",

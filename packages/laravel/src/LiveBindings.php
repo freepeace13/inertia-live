@@ -13,20 +13,21 @@ use Illuminate\Contracts\Config\Repository as Config;
  */
 final class LiveBindings
 {
-    /** @var list<array{topic: string, props: list<string>, public: bool}> */
+    /** @var list<array{topic: string, props: list<string>}> */
     private array $bindings = [];
 
     public function __construct(
         private readonly CursorRepository $cursors,
         private readonly Config $config,
+        private readonly LiveManager $live,
     ) {}
 
     /**
      * @param  list<string>  $props
      */
-    public function add(string $topic, array $props, bool $public = false): void
+    public function add(string $topic, array $props): void
     {
-        $this->bindings[] = ['topic' => $topic, 'props' => $props, 'public' => $public];
+        $this->bindings[] = ['topic' => $topic, 'props' => $props];
     }
 
     /**
@@ -42,7 +43,7 @@ final class LiveBindings
                 'channel' => $prefix.'.'.$binding['topic'],
                 'props' => $binding['props'],
                 'cursor' => $this->cursors->get($binding['topic']),
-                'public' => $binding['public'],
+                'public' => $this->live->isPublic($binding['topic']),
             ], $this->bindings),
         ];
     }

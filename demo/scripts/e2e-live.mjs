@@ -73,14 +73,22 @@ const page = pageFrom(await (await http('GET', `/documents/${uuid}`)).text());
 const live = page.props._live;
 check('page carries _live bindings', live?.bindings?.[0]?.topic === `documents.${uuid}`, JSON.stringify(live));
 
+// A `_live`-only reload is the client re-reading cursors right after subscribing; track it apart.
 const reloads = { a: [], b: [] };
+const recoveries = { a: 0, b: 0 };
+const record = (who) => async (only) => {
+    if (only.length === 1 && only[0] === '_live') recoveries[who]++;
+    else reloads[who].push(only);
+};
 const echoA = makeEcho();
 const echoB = makeEcho();
-const clientA = new LiveClient({ echo: echoA, reload: async (only) => void reloads.a.push(only), debounceMs: 50 });
-const clientB = new LiveClient({ echo: echoB, reload: async (only) => void reloads.b.push(only), debounceMs: 50 });
+const clientA = new LiveClient({ echo: echoA, reload: record('a'), debounceMs: 50 });
+const clientB = new LiveClient({ echo: echoB, reload: record('b'), debounceMs: 50 });
 clientA.sync(live);
 clientB.sync(live);
 await sleep(1500); // subscriptions (including private channel auth) settle
+
+check('subscriptions re-read _live once confirmed', recoveries.a >= 1 && recoveries.b >= 1, JSON.stringify(recoveries));
 
 const socketA = echoA.socketId();
 check('both clients connected', Boolean(socketA && echoB.socketId()), `socketA=${socketA}`);

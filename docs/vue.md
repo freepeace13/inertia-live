@@ -30,6 +30,7 @@ Register `InertiaLive` after Inertia's `plugin`: it calls `usePage()`.
 | --- | --- | --- |
 | `echo` | required | Your laravel-echo instance |
 | `debounceMs` | `150` | Debounce window; `0` reloads immediately |
+| `maxWaitMs` | `debounceMs * 4` | Longest a steady signal stream can postpone a reload |
 | `connection` | Pusher connection | Override connection observation for other Echo drivers |
 | `reload` | `router.reload` based | Replace the reloader (mainly for tests) |
 | `onError` | none | Called when a live reload fails |
@@ -55,8 +56,8 @@ const { status, lastSyncedAt, pause, resume, refresh } = useLive()
 | --- | --- |
 | `status` | `Ref<'connecting' \| 'live' \| 'reconnecting' \| 'offline'>` |
 | `lastSyncedAt` | `Ref<Date \| null>` |
-| `pause()` | Hold reloads; signals keep queueing |
-| `resume()` | Flush anything queued while paused |
+| `pause()` | Hold reloads; signals keep queueing. Scoped to this component: released on unmount and on navigation |
+| `resume()` | Release this component's latest pause and flush anything queued |
 | `refresh()` | Reload every live prop now; returns a promise |
 
 Call it in `setup()`. Its listeners are removed automatically when the effect scope is disposed. It throws if the plugin is not installed.

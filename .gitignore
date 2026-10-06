@@ -5,6 +5,8 @@ dist/
 .phpunit.cache/
 .DS_Store
 composer.lock
+# The demo is an application: its lockfile keeps PHP dependencies reproducible.
+!demo/composer.lock
 
 # Implementation plans (local only)
 docs/plans/

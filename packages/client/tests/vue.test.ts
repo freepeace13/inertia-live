@@ -6,16 +6,26 @@ import { createFakeLive } from '../src/vue/testing'
 
 vi.mock('@inertiajs/vue3', async () => {
   const { reactive } = await import('vue')
+  const handlers: Record<string, (...args: never[]) => void> = {}
   const page = reactive<{ props: Record<string, unknown> }>({ props: {} })
 
   return {
     usePage: () => page,
-    router: { reload: vi.fn((options: { onFinish?: () => void }) => options.onFinish?.()) },
+    router: {
+      reload: vi.fn((options: { onFinish?: () => void }) => options.onFinish?.()),
+      on: vi.fn((event: string, callback: (...args: never[]) => void) => {
+        handlers[event] = callback
+        return () => delete handlers[event]
+      }),
+    },
     __page: page,
+    __handlers: handlers,
   }
 })
 
 const page = (inertia as unknown as { __page: { props: Record<string, unknown> } }).__page
+const handlers = (inertia as unknown as { __handlers: Record<string, (event?: unknown) => void> })
+  .__handlers
 
 const binding = (topic: string, props: string[], cursor = 0): Binding => ({
   topic,
@@ -208,5 +218,56 @@ describe('createFakeLive (vue)', () => {
     expect(fake.options.echo).toBe(fake.echo)
     expect(fake.options.reload).toBe(fake.reload)
     expect(fake.options.debounceMs).toBe(0)
+  })
+
+  it('adds the socket id to every visit so the server skips the sender', async () => {
+    const { fake } = install()
+    fake.setSocketId('123.456')
+
+    const visit = { headers: {} as Record<string, string> }
+    handlers.before({ detail: { visit } })
+
+    expect(visit.headers).toEqual({ 'X-Socket-ID': '123.456' })
+  })
+
+  it('leaves visits alone when Echo has no socket id yet', () => {
+    install()
+
+    const visit = { headers: {} as Record<string, string> }
+    handlers.before({ detail: { visit } })
+
+    expect(visit.headers).toEqual({})
+  })
+
+  it('drops pauses on navigation', async () => {
+    const { fake, app } = install()
+    navigate(binding('documents.a', ['document']))
+    await nextTick()
+    const live = app.runWithContext(() => useLive())
+
+    live.pause()
+    fake.emit('documents.a', 1)
+    handlers.navigate()
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('does not let one useLive() resume another pause', async () => {
+    const { fake, app } = install()
+    navigate(binding('documents.a', ['document']))
+    await nextTick()
+    const first = app.runWithContext(() => useLive())
+    const second = app.runWithContext(() => useLive())
+
+    first.pause()
+    fake.emit('documents.a', 1)
+    second.resume()
+    await vi.advanceTimersByTimeAsync(1000)
+    expect(fake.reloads).toEqual([])
+
+    first.resume()
+    await vi.advanceTimersByTimeAsync(150)
+    expect(fake.reloads).toEqual([['document']])
   })
 })
