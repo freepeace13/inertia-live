@@ -10,6 +10,7 @@ use Freepeace13\InertiaLive\Cursor\CursorRepository;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\ServiceProvider;
+use InvalidArgumentException;
 use Spatie\EventSourcing\Events\FinishedEventReplay;
 
 final class InertiaLiveServiceProvider extends ServiceProvider
@@ -32,6 +33,8 @@ final class InertiaLiveServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->validateConfig();
+
         $this->registerFlushPoints();
 
         LiveResponseMacro::register();
@@ -66,5 +69,18 @@ final class InertiaLiveServiceProvider extends ServiceProvider
 
             $flush();
         });
+    }
+
+    private function validateConfig(): void
+    {
+        $config = $this->app['config'];
+
+        if (! is_string($config->get('inertia-live.channel_prefix')) || $config->get('inertia-live.channel_prefix') === '') {
+            throw new InvalidArgumentException('inertia-live.channel_prefix must be a non-empty string.');
+        }
+
+        if ((int) $config->get('inertia-live.max_signals_per_second') < 1) {
+            throw new InvalidArgumentException('inertia-live.max_signals_per_second must be at least 1.');
+        }
     }
 }
