@@ -1,6 +1,6 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
-import { useLive } from '@freepeace13/inertia-live/vue';
+import { useLive } from '@freepeace13/inertia-live-vue';
 
 const props = defineProps({ document: Object, comments: Array });
 

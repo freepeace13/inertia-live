@@ -6,7 +6,7 @@ Oct 6, 2026 · @Kin
 
 The package lets an Inertia page stay live: when a stored event updates a projection, every page showing that projection refreshes the affected props automatically, with no per-page WebSocket code.
 
-**Working name:** Inertia Live Projections (`freepeace13/inertia-live-projections` on Packagist, `@freepeace13/inertia-live` on npm).
+**Working name:** Inertia Live Projections (`freepeace13/inertia-live-laravel` on Packagist, `@freepeace13/inertia-live-{core,vue,react}` on npm).
 
 **Problem.** In a Laravel app using Spatie Event Sourcing and Inertia, making a page real-time today means hand-wiring four things per feature: a broadcast event, a channel authorization rule, an Echo listener in the Vue page, and the reload logic. That wiring is repetitive, easy to get wrong (stale data, race conditions, leaked payloads), and scattered across PHP and JS.
 
@@ -151,7 +151,7 @@ One install makes every page with a `_live` prop live automatically; a composabl
 
 ```ts
 import { createInertiaApp } from '@inertiajs/vue3'
-import { InertiaLive } from '@freepeace13/inertia-live/vue'
+import { InertiaLive } from '@freepeace13/inertia-live-vue'
 import { echo } from './echo' // the app's configured Echo instance
 
 createInertiaApp({
@@ -184,7 +184,7 @@ Use `pause()` while a user edits a form so a reload does not interrupt them; que
 **React.** Instead of a plugin, wrap the app in `InertiaLiveProvider` and read state with the `useLive()` hook, which returns the same `{ status, lastSyncedAt, pause, resume, refresh }`.
 
 ```tsx
-import { InertiaLiveProvider } from '@freepeace13/inertia-live/react'
+import { InertiaLiveProvider } from '@freepeace13/inertia-live-react'
 import { echo } from './echo'
 
 // Persistent layout: it must render inside the Inertia tree because the provider reads usePage().
@@ -268,23 +268,19 @@ Live::assertChangedTimes("documents.{$doc->uuid}", 1); // proves coalescing
 
 **Testing helpers (Vue and React, Vitest).** `createFakeLive()` returns a fake Echo that tests drive with `emit(topic, version)`, then assert on the `router.reload` calls it captured. The Vue version returns plugin `options`; the React version returns `providerProps`.
 
-**Repository layout (monorepo)**
+**Repository layout (npm monorepo; the Laravel adapter is a separate repository)**
 
 ```
 inertia-live/
-├── packages/
-│   ├── laravel/          # composer package
-│   │   ├── src/{Attributes,Concerns,Broadcasting,Cursor,Testing}
-│   │   ├── config/inertia-live.php
-│   │   └── tests/        # Pest + Orchestra Testbench
-│   └── client/           # npm package
-│       ├── src/core/     # LiveClient, framework-agnostic
-│       ├── src/vue/      # plugin + useLive
-│       ├── src/react/    # InertiaLiveProvider + useLive
-│       └── tests/        # Vitest
+├── packages/             # npm workspaces
+│   ├── core/             # LiveClient, framework-agnostic
+│   ├── vue/              # plugin + useLive
+│   └── react/            # InertiaLiveProvider + useLive
 ├── demo/                 # Laravel 13 demo app (Vue and React frontends)
-└── .github/workflows/    # matrix: PHP 8.3-8.5 x Laravel 12-13 x Inertia 2-3
+└── .github/workflows/    # client matrix: Inertia 2-3 x React 18-19
 ```
+
+The Laravel adapter lives in its own repository, `freepeace13/inertia-live-laravel`, so Packagist can read a root `composer.json`. It keeps the PHP matrix: PHP 8.3-8.5 x Laravel 12-13 x Inertia 2-3.
 
 ## Milestones and open questions
 
@@ -301,7 +297,7 @@ Ship v0.1 as soon as M2 passes; a small, tagged, documented release beats a comp
 **Open questions**
 
 - [ ] React: ship a helper that injects the provider through Inertia's `createInertiaApp` (if a supported hook exists in v2 and v3) so apps do not need a persistent layout.
-- [ ] Package name: `inertia-live-projections` vs shorter `inertia-live` (check Packagist and npm availability).
+- [ ] Package name: `inertia-live-laravel` vs shorter `inertia-live` (check Packagist and npm availability).
 - [ ] Should non-event-sourced Eloquent models be able to emit signals too (wider audience, weaker DDD focus)?
 - [ ] Cursor store default: cache vs a small `live_cursors` table for durability.
 - [ ] Debounce default of 150 ms: validate against the demo's chat use case, which may want 0.

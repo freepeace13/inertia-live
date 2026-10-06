@@ -1,9 +1,9 @@
 # Client core
 
-`@freepeace13/inertia-live` exports a framework-agnostic `LiveClient`. The Vue and React adapters are thin wrappers that add page watching, a `router.reload` reloader and status bindings. Use the core directly for another framework or custom setups.
+`@freepeace13/inertia-live-core` exports a framework-agnostic `LiveClient`. The Vue and React adapters are thin wrappers that add page watching, a `router.reload` reloader and status bindings. Use the core directly for another framework or custom setups.
 
 ```ts
-import { LiveClient } from '@freepeace13/inertia-live'
+import { LiveClient } from '@freepeace13/inertia-live-core'
 
 const client = new LiveClient({
   echo, // your configured laravel-echo instance

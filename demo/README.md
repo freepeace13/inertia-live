@@ -16,10 +16,10 @@ The app signs everyone in as one demo user (`LoginDemoUser`) so private channels
 
 ## Run
 
-The packages are linked from `../packages`, so build the client first.
+The server package comes from GitHub (`freepeace13/inertia-live-laravel`, `dev-main`) until it is on Packagist. The client packages are linked from `../packages`, so build them first. To develop the server package alongside, clone it next to this repo and point Composer at it: `composer config repositories.inertia-live-laravel path ../../inertia-live-laravel`.
 
 ```bash
-(cd ../packages/client && npm install && npm run build)
+(cd .. && npm install && npm run build)
 
 cp .env.example .env && php artisan key:generate
 touch database/database.sqlite

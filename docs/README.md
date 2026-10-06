@@ -37,6 +37,8 @@ For the original design rationale, goals and milestones see [SPEC.md](SPEC.md).
 
 | Package | Location | Purpose |
 | --- | --- | --- |
-| `freepeace13/inertia-live-projections` | `packages/laravel` | Server: attribute, projector trait, flusher, broadcast, `->live()` macro, test fake |
-| `@freepeace13/inertia-live` | `packages/client` | Client: `LiveClient` core plus `/vue` and `/react` adapters |
+| [`freepeace13/inertia-live-laravel`](https://github.com/freepeace13/inertia-live-laravel) | own repository | Server: attribute, projector trait, flusher, broadcast, `->live()` macro, test fake |
+| `@freepeace13/inertia-live-core` | `packages/core` | Client: framework-agnostic `LiveClient` |
+| `@freepeace13/inertia-live-vue` | `packages/vue` | Vue 3 plugin and `useLive()` |
+| `@freepeace13/inertia-live-react` | `packages/react` | React provider and `useLive()` |
 | Demo app | `demo/` | Laravel 13 app with Vue and React frontends |

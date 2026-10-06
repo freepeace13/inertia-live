@@ -1,0 +1,22 @@
+{
+  "name": "inertia-live-client",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/vue",
+    "packages/react"
+  ],
+  "scripts": {
+    "build": "npm run build -w @freepeace13/inertia-live-core && npm run build -w @freepeace13/inertia-live-vue -w @freepeace13/inertia-live-react",
+    "test": "npm test --workspaces",
+    "typecheck": "npm run typecheck --workspaces",
+    "lint": "biome check .",
+    "format": "biome check --write ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "typescript": "^5.6.0",
+    "vitest": "^3.0.0"
+  }
+}

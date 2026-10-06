@@ -1,5 +1,5 @@
 import { Link, useForm } from '@inertiajs/react';
-import { useLive } from '@freepeace13/inertia-live/react';
+import { useLive } from '@freepeace13/inertia-live-react';
 
 export default function Show({ document, comments }) {
     const { status, lastSyncedAt, pause, resume } = useLive();

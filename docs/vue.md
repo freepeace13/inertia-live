@@ -8,7 +8,7 @@ Install once in `app.ts`. Every page carrying a `_live` prop becomes live; no pe
 
 ```ts
 import { createInertiaApp } from '@inertiajs/vue3'
-import { InertiaLive } from '@freepeace13/inertia-live/vue'
+import { InertiaLive } from '@freepeace13/inertia-live-vue'
 import { createApp, h } from 'vue'
 import { echo } from './echo'
 
@@ -47,7 +47,7 @@ The default reloader, `inertiaReloader`, runs `router.reload({ only })` and reso
 ## `useLive()`
 
 ```ts
-import { useLive } from '@freepeace13/inertia-live/vue'
+import { useLive } from '@freepeace13/inertia-live-vue'
 
 const { status, lastSyncedAt, pause, resume, refresh } = useLive()
 ```
@@ -66,7 +66,7 @@ Call it in `setup()`. Its listeners are removed automatically when the effect sc
 
 ```vue
 <script setup lang="ts">
-import { useLive } from '@freepeace13/inertia-live/vue'
+import { useLive } from '@freepeace13/inertia-live-vue'
 
 const { status, lastSyncedAt, pause, resume } = useLive()
 </script>
@@ -84,7 +84,7 @@ const { status, lastSyncedAt, pause, resume } = useLive()
 ## Testing
 
 ```ts
-import { createFakeLive } from '@freepeace13/inertia-live/vue/testing'
+import { createFakeLive } from '@freepeace13/inertia-live-vue/testing'
 
 const fake = createFakeLive({ debounceMs: 0 })
 app.use(InertiaLive, fake.options)

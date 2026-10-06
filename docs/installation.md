@@ -16,7 +16,7 @@ CI runs the server against PHP 8.3 to 8.5, Laravel 12 and 13, and Inertia 2 and 
 ## Server
 
 ```bash
-composer require freepeace13/inertia-live-projections
+composer require freepeace13/inertia-live-laravel
 ```
 
 The service provider is auto-discovered. It merges the default config, registers the `->live()` macro on `Inertia\Response` and hooks the flush points (request end, queue jobs, replays).
@@ -47,11 +47,12 @@ You need:
 ## Client
 
 ```bash
-npm install @freepeace13/inertia-live laravel-echo
+npm install @freepeace13/inertia-live-vue laravel-echo     # Vue 3
+npm install @freepeace13/inertia-live-react laravel-echo   # React
+npm install @freepeace13/inertia-live-core laravel-echo    # another framework
 ```
 
-Vue and React are optional peer dependencies. Install only the adapter you use (`@inertiajs/vue3` + `vue`, or `@inertiajs/react` + `react`).
-
+Each adapter pulls in `@freepeace13/inertia-live-core`. Install only the adapter you use, with its Inertia peer (`@inertiajs/vue3` + `vue`, or `@inertiajs/react` + `react`).
 Configure Echo once and pass the instance to the adapter:
 
 ```ts
@@ -77,12 +78,12 @@ Then wire up the adapter: [Vue 3](vue.md) or [React](react.md).
 
 | Import | Contents |
 | --- | --- |
-| `@freepeace13/inertia-live` | `LiveClient`, `CursorStore`, `ConnectionTracker` and types |
-| `@freepeace13/inertia-live/testing` | Framework-agnostic `createFakeLive()` |
-| `@freepeace13/inertia-live/vue` | `InertiaLive` plugin, `useLive()`, `inertiaReloader` |
-| `@freepeace13/inertia-live/vue/testing` | Vue `createFakeLive()` |
-| `@freepeace13/inertia-live/react` | `InertiaLiveProvider`, `useLive()`, `inertiaReloader` |
-| `@freepeace13/inertia-live/react/testing` | React `createFakeLive()` |
+| `@freepeace13/inertia-live-core` | `LiveClient`, `CursorStore`, `ConnectionTracker` and types |
+| `@freepeace13/inertia-live-core/testing` | Framework-agnostic `createFakeLive()` |
+| `@freepeace13/inertia-live-vue` | `InertiaLive` plugin, `useLive()`, `inertiaReloader` |
+| `@freepeace13/inertia-live-vue/testing` | Vue `createFakeLive()` |
+| `@freepeace13/inertia-live-react` | `InertiaLiveProvider`, `useLive()`, `inertiaReloader` |
+| `@freepeace13/inertia-live-react/testing` | React `createFakeLive()` |
 
 ## Wiring checklist
 

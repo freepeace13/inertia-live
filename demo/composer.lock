@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ef82635685703f32c137e4ae9208be5c",
+    "content-hash": "674b9855cb57333e008a159cb052dae8",
     "packages": [
         {
             "name": "brick/math",
@@ -737,12 +737,18 @@
             "time": "2023-08-08T05:53:35+00:00"
         },
         {
-            "name": "freepeace13/inertia-live-projections",
+            "name": "freepeace13/inertia-live-laravel",
             "version": "dev-main",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/freepeace13/inertia-live-laravel.git",
+                "reference": "3211eb6f68fdd3b9f1268f13c7e150ce3b8ed8ff"
+            },
             "dist": {
-                "type": "path",
-                "url": "../packages/laravel",
-                "reference": "9b48df14a5c805b3082b8b36183be07a101f85fd"
+                "type": "zip",
+                "url": "https://api.github.com/repos/freepeace13/inertia-live-laravel/zipball/3211eb6f68fdd3b9f1268f13c7e150ce3b8ed8ff",
+                "reference": "3211eb6f68fdd3b9f1268f13c7e150ce3b8ed8ff",
+                "shasum": ""
             },
             "require": {
                 "illuminate/support": "^12.0 || ^13.0",
@@ -756,6 +762,7 @@
                 "orchestra/testbench": "^10.0 || ^11.0",
                 "pestphp/pest": "^3.0 || ^4.0"
             },
+            "default-branch": true,
             "type": "library",
             "extra": {
                 "laravel": {
@@ -792,10 +799,19 @@
                 "MIT"
             ],
             "description": "Live Inertia pages driven by Spatie Event Sourcing projections.",
-            "transport-options": {
-                "symlink": true,
-                "relative": true
-            }
+            "homepage": "https://github.com/freepeace13/inertia-live-laravel",
+            "keywords": [
+                "broadcasting",
+                "event-sourcing",
+                "inertia",
+                "laravel",
+                "realtime"
+            ],
+            "support": {
+                "source": "https://github.com/freepeace13/inertia-live-laravel/tree/main",
+                "issues": "https://github.com/freepeace13/inertia-live-laravel/issues"
+            },
+            "time": "2026-10-06T15:29:31+00:00"
         },
         {
             "name": "fruitcake/php-cors",
@@ -10496,7 +10512,7 @@
     "aliases": [],
     "minimum-stability": "stable",
     "stability-flags": {
-        "freepeace13/inertia-live-projections": 20
+        "freepeace13/inertia-live-laravel": 20
     },
     "prefer-stable": true,
     "prefer-lowest": false,

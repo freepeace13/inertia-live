@@ -10,63 +10,6 @@ on:
   pull_request:
 
 jobs:
-  laravel-lint:
-    runs-on: ubuntu-latest
-    name: Laravel lint and static analysis
-    defaults:
-      run:
-        working-directory: packages/laravel
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.4'
-          coverage: none
-      - run: composer update --prefer-dist --no-interaction
-      - run: composer lint
-      - run: composer analyse
-
-  laravel:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        php: ['8.3', '8.4', '8.5']
-        laravel: ['12.*', '13.*']
-        inertia: ['2.*', '3.*']
-    name: PHP ${{ matrix.php }} / Laravel ${{ matrix.laravel }} / Inertia ${{ matrix.inertia }}
-    defaults:
-      run:
-        working-directory: packages/laravel
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: ${{ matrix.php }}
-          coverage: none
-      - run: >
-          composer require
-          "illuminate/support:${{ matrix.laravel }}"
-          "inertiajs/inertia-laravel:${{ matrix.inertia }}"
-          --no-interaction --no-update
-      - run: composer update --prefer-dist --no-interaction
-      - run: vendor/bin/pest
-
-  laravel-lowest:
-    runs-on: ubuntu-latest
-    name: Lowest supported dependencies
-    defaults:
-      run:
-        working-directory: packages/laravel
-    steps:
-      - uses: actions/checkout@v4
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-          coverage: none
-      - run: composer update --prefer-lowest --prefer-stable --prefer-dist --no-interaction
-      - run: vendor/bin/pest
-
   client:
     runs-on: ubuntu-latest
     strategy:
@@ -78,27 +21,27 @@ jobs:
           - { inertia: '^3', react: '^19' }
           - { inertia: '^2', react: '^18' }
     name: Client / Inertia ${{ matrix.inertia }} / React ${{ matrix.react }}
-    defaults:
-      run:
-        working-directory: packages/client
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm ci
+      # Pin the matrix versions in the workspaces that own them, then resolve without the
+      # lockfile so each combination installs exactly one copy of React.
       - run: >
-          npm install --no-save
-          "@inertiajs/react@${{ matrix.inertia }}"
-          "@inertiajs/vue3@${{ matrix.inertia }}"
-          "react@${{ matrix.react }}"
-          "react-dom@${{ matrix.react }}"
-          "@types/react@${{ matrix.react }}"
-          "@types/react-dom@${{ matrix.react }}"
+          npm pkg set
+          -w @freepeace13/inertia-live-react
+          "devDependencies.@inertiajs/react=${{ matrix.inertia }}"
+          "devDependencies.react=${{ matrix.react }}"
+          "devDependencies.react-dom=${{ matrix.react }}"
+          "devDependencies.@types/react=${{ matrix.react }}"
+          "devDependencies.@types/react-dom=${{ matrix.react }}"
+      - run: npm pkg set -w @freepeace13/inertia-live-vue "devDependencies.@inertiajs/vue3=${{ matrix.inertia }}"
+      - run: npm install --no-package-lock
+      - run: npm run build
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
-      - run: npm run build
 
   demo:
     runs-on: ubuntu-latest
@@ -115,8 +58,8 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - name: Build the client the demo links to
-        working-directory: packages/client
+      - name: Build the client packages the demo links to
+        working-directory: .
         run: npm ci && npm run build
       - run: cp .env.example .env && touch database/database.sqlite
       - run: composer install --prefer-dist --no-interaction

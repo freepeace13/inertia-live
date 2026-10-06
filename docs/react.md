@@ -7,7 +7,7 @@ Requires `react` 18 or 19, `@inertiajs/react` ^2 or ^3 and `laravel-echo` ^2.
 `InertiaLiveProvider` reads the current page with `usePage()`, which only works inside Inertia's component tree. Render it in a **persistent layout**, not around `<App>`.
 
 ```tsx
-import { InertiaLiveProvider } from '@freepeace13/inertia-live/react'
+import { InertiaLiveProvider } from '@freepeace13/inertia-live-react'
 import { echo } from './echo'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
@@ -46,7 +46,7 @@ A non-persistent layout still works but recreates the client on every navigation
 ## `useLive()`
 
 ```tsx
-import { useLive } from '@freepeace13/inertia-live/react'
+import { useLive } from '@freepeace13/inertia-live-react'
 
 function LiveBadge() {
   const { status, lastSyncedAt, pause, resume, refresh } = useLive()
@@ -75,7 +75,7 @@ State is built on `useSyncExternalStore`. `useLive()` throws if used outside `<I
 ## Testing
 
 ```tsx
-import { createFakeLive } from '@freepeace13/inertia-live/react/testing'
+import { createFakeLive } from '@freepeace13/inertia-live-react/testing'
 
 const fake = createFakeLive({ debounceMs: 0 })
 render(<InertiaLiveProvider {...fake.providerProps}>{children}</InertiaLiveProvider>)

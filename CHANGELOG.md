@@ -1,6 +1,12 @@
 # Changelog
 
+Client and repository changes. Server changes are tracked in [freepeace13/inertia-live-laravel](https://github.com/freepeace13/inertia-live-laravel/blob/main/CHANGELOG.md).
+
 ## Unreleased
+
+### Changed (breaking, pre-1.0)
+- The single npm package `@freepeace13/inertia-live` is split into `@freepeace13/inertia-live-core`, `@freepeace13/inertia-live-vue` and `@freepeace13/inertia-live-react` (npm workspaces under `packages/`). Imports change from `@freepeace13/inertia-live/vue` to `@freepeace13/inertia-live-vue`, `/vue/testing` to `-vue/testing`, and the root and `/testing` entries move to `-core`.
+- The Laravel adapter moves to its own repository, `freepeace13/inertia-live-laravel`, and the Composer package is renamed from `freepeace13/inertia-live-projections`.
 
 ### Changed (breaking, pre-1.0)
 - Signal versions are a per-topic sequence taken at flush time, not the stored event id ([Design decisions](docs/design-decisions.md)). Fixes signals being dropped when several projectors, or concurrent queue workers, handle one topic. `CursorRepository::put()` becomes `next()`; `Change` no longer carries a version; `LiveChangeBroadcast` takes it as its second argument. The cursor store must support atomic `increment`; versions are opaque clock-seeded numbers (~1.8e15). The `force` flag on replay signals is removed as redundant.

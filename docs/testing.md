@@ -30,7 +30,7 @@ A change is "flushed" when the request, job or command ends (or when the flusher
 
 ### Testing without the fake
 
-For lower-level tests, resolve `ChangeBuffer`, `TopicResolver`, `ChangeFlusher` or `CursorRepository` from the container. The package's own suite uses Pest with Orchestra Testbench, SQLite in memory and Spatie's migrations; fixtures live in `packages/laravel/tests/Fixtures`.
+For lower-level tests, resolve `ChangeBuffer`, `TopicResolver`, `ChangeFlusher` or `CursorRepository` from the container. The package's own suite uses Pest with Orchestra Testbench, SQLite in memory and Spatie's migrations; fixtures live in `tests/Fixtures` of the Laravel repository.
 
 ## Client: `createFakeLive()`
 
@@ -38,9 +38,9 @@ Every adapter has a `createFakeLive()` that returns a fake Echo plus helpers to 
 
 | Import | Extra member for wiring |
 | --- | --- |
-| `@freepeace13/inertia-live/testing` | `echo`, `reload` for `new LiveClient({...})` |
-| `@freepeace13/inertia-live/vue/testing` | `options` for `app.use(InertiaLive, fake.options)` |
-| `@freepeace13/inertia-live/react/testing` | `providerProps` for `<InertiaLiveProvider {...fake.providerProps}>` |
+| `@freepeace13/inertia-live-core/testing` | `echo`, `reload` for `new LiveClient({...})` |
+| `@freepeace13/inertia-live-vue/testing` | `options` for `app.use(InertiaLive, fake.options)` |
+| `@freepeace13/inertia-live-react/testing` | `providerProps` for `<InertiaLiveProvider {...fake.providerProps}>` |
 
 The Vue and React versions also accept `{ debounceMs }`. All accept `{ channelPrefix }` (default `'live'`).
 
@@ -61,8 +61,8 @@ The Vue and React versions also accept `{ debounceMs }`. All accept `{ channelPr
 ### Example (core)
 
 ```ts
-import { LiveClient } from '@freepeace13/inertia-live'
-import { createFakeLive } from '@freepeace13/inertia-live/testing'
+import { LiveClient } from '@freepeace13/inertia-live-core'
+import { createFakeLive } from '@freepeace13/inertia-live-core/testing'
 
 const fake = createFakeLive()
 const client = new LiveClient({ echo: fake.echo, reload: fake.reload, debounceMs: 0 })
@@ -90,9 +90,9 @@ fake.setConnectionState('connected') // triggers one refresh() of all bound prop
 ## Running the repository's own tests
 
 ```bash
-# server
-cd packages/laravel && composer install && composer test   # also: composer lint, composer analyse
+# server: https://github.com/freepeace13/inertia-live-laravel
+composer install && composer test   # also: composer lint, composer analyse
 
-# client
-cd packages/client && npm ci && npm test                   # also: npm run typecheck, npm run lint
+# client: this repository, from the root
+npm ci && npm test                  # also: npm run typecheck, npm run lint
 ```

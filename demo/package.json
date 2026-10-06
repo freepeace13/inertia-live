@@ -22,7 +22,9 @@
         "@laravel/multiplex": "^0.4.1"
     },
     "dependencies": {
-        "@freepeace13/inertia-live": "file:../packages/client",
+        "@freepeace13/inertia-live-core": "file:../packages/core",
+        "@freepeace13/inertia-live-react": "file:../packages/react",
+        "@freepeace13/inertia-live-vue": "file:../packages/vue",
         "@inertiajs/react": "^3.8.0",
         "@inertiajs/vue3": "^3.8.0",
         "laravel-echo": "^2.5.0",

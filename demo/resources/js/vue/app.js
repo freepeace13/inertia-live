@@ -1,5 +1,5 @@
 import { createInertiaApp } from '@inertiajs/vue3';
-import { InertiaLive } from '@freepeace13/inertia-live/vue';
+import { InertiaLive } from '@freepeace13/inertia-live-vue';
 import { createApp, h } from 'vue';
 import { echo } from '../echo';
 

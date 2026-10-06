@@ -1,0 +1,51 @@
+{
+  "name": "@freepeace13/inertia-live-vue",
+  "version": "0.0.0",
+  "description": "Vue 3 adapter for Inertia Live: plugin and useLive().",
+  "license": "MIT",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/freepeace13/inertia-live.git",
+    "directory": "packages/vue"
+  },
+  "bugs": {
+    "url": "https://github.com/freepeace13/inertia-live/issues"
+  },
+  "homepage": "https://github.com/freepeace13/inertia-live/tree/main/packages/vue#readme",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./testing": {
+      "types": "./dist/testing.d.ts",
+      "import": "./dist/testing.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "prepublishOnly": "npm run build",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@freepeace13/inertia-live-core": "^0.0.0"
+  },
+  "peerDependencies": {
+    "@inertiajs/vue3": "^2.0.0 || ^3.0.0",
+    "laravel-echo": "^2.0.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@inertiajs/vue3": "^2.0.0",
+    "laravel-echo": "^2.0.0",
+    "vue": "^3.4.0"
+  }
+}

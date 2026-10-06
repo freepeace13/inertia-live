@@ -1,6 +1,6 @@
 // End-to-end check against a running demo (php artisan serve --port=8000 and reverb:start --port=8080).
 // Two Echo clients follow one document; a third request changes it. Run: npm run e2e
-import { LiveClient } from '@freepeace13/inertia-live';
+import { LiveClient } from '@freepeace13/inertia-live-core';
 import Echo from 'laravel-echo';
 import Pusher from 'pusher-js';
 

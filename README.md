@@ -4,10 +4,14 @@ Live Inertia pages driven by [Spatie Event Sourcing](https://github.com/spatie/l
 
 The socket only carries a tiny "topic changed" signal (`{ topic, version, props }`). The page re-fetches the affected props through its own controller, so policies, hidden attributes and per-user fields keep working unchanged.
 
-| Package | Install | Docs |
+| Package | Install | Role |
 | --- | --- | --- |
-| Laravel (`packages/laravel`) | `composer require freepeace13/inertia-live-projections` | [README](packages/laravel/README.md) |
-| Client (`packages/client`) | `npm install @freepeace13/inertia-live laravel-echo` | [README](packages/client/README.md) |
+| [`freepeace13/inertia-live-laravel`](https://github.com/freepeace13/inertia-live-laravel) | `composer require freepeace13/inertia-live-laravel` | Server: topics, projector trait, broadcasting, `->live()` |
+| [`@freepeace13/inertia-live-core`](packages/core/README.md) | `npm install @freepeace13/inertia-live-core` | Framework-agnostic client |
+| [`@freepeace13/inertia-live-vue`](packages/vue/README.md) | `npm install @freepeace13/inertia-live-vue` | Vue 3 plugin and `useLive()` |
+| [`@freepeace13/inertia-live-react`](packages/react/README.md) | `npm install @freepeace13/inertia-live-react` | React provider and `useLive()` |
+
+This repository holds the client packages, the docs and the demo. The Laravel adapter lives in its own repository so Packagist can index it.
 
 Requires PHP 8.3+, Laravel 12/13, Inertia 2/3, `spatie/laravel-event-sourcing` ^7.14, an Echo-compatible broadcaster (Reverb, Pusher, Ably) and Vue 3.4+ or React 18/19. Details in [Installation](docs/installation.md).
 
@@ -67,6 +71,10 @@ See [Page bindings](docs/bindings.md).
 
 ### 5. Install the client
 
+```bash
+npm install @freepeace13/inertia-live-vue laravel-echo     # or @freepeace13/inertia-live-react
+```
+
 Vue 3:
 
 ```ts
@@ -114,7 +122,7 @@ Live::assertChanged("documents.{$doc->uuid}", props: ['document']);
 Live::assertChangedTimes("documents.{$doc->uuid}", 1);
 ```
 
-Client tests use `createFakeLive()` from `@freepeace13/inertia-live/vue/testing` or `/react/testing`. See [Testing](docs/testing.md).
+Client tests use `createFakeLive()` from `@freepeace13/inertia-live-vue/testing` or `/react/testing`. See [Testing](docs/testing.md).
 
 ## Documentation
 
@@ -136,10 +144,13 @@ Client tests use `createFakeLive()` from `@freepeace13/inertia-live/vue/testing`
 ## Repository
 
 ```
-packages/laravel   composer package (Pest + Orchestra Testbench)
-packages/client    npm package (Vitest): core, vue, react
-demo/              Laravel 13 demo with Vue (resources/js/vue) and React (resources/js/react) frontends
-docs/              documentation
+packages/core    @freepeace13/inertia-live-core   (Vitest)
+packages/vue     @freepeace13/inertia-live-vue    (Vitest)
+packages/react   @freepeace13/inertia-live-react  (Vitest)
+demo/            Laravel 13 demo with Vue (resources/js/vue) and React (resources/js/react) frontends
+docs/            documentation
 ```
+
+The npm packages are workspaces: `npm install`, `npm run build` and `npm test` run from the root. The Laravel adapter is developed in [freepeace13/inertia-live-laravel](https://github.com/freepeace13/inertia-live-laravel).
 
 MIT licensed.
