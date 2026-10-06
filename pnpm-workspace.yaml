@@ -1,0 +1,15 @@
+packages:
+  - packages/*
+  - tests/*
+
+# Single source for versions the CI matrix overrides (Inertia / React).
+catalog:
+  '@inertiajs/react': ^2.3.28
+  '@inertiajs/vue3': ^2.0.0
+  '@types/react': ^19.3.0
+  '@types/react-dom': ^19.3.0
+  react: ^19.3.0
+  react-dom: ^19.3.0
+
+allowBuilds:
+  esbuild: true

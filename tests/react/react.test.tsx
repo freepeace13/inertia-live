@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
 import type { Binding } from '@freepeace13/inertia-live-core'
+import { InertiaLiveProvider, inertiaReloader, useLive } from '@freepeace13/inertia-live-react'
+import { createFakeLive } from '@freepeace13/inertia-live-react/testing'
 import * as inertia from '@inertiajs/react'
 import { act, cleanup, render } from '@testing-library/react'
 import { StrictMode, useEffect } from 'react'
-import { InertiaLiveProvider, inertiaReloader, useLive } from '../src'
-import { createFakeLive } from '../src/testing'
 
 const current = vi.hoisted(() => ({
   props: {} as Record<string, unknown>,

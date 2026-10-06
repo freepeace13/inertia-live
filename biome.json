@@ -1,7 +1,19 @@
 {
   "$schema": "https://biomejs.dev/schemas/2.5.15/schema.json",
   "files": {
-    "includes": ["packages/*/src/**", "packages/*/tests/**", "packages/*/package.json", "packages/*/tsconfig*.json", "biome.json", "package.json", "tsconfig.base.json"]
+    "includes": [
+      "packages/*/src/**",
+      "packages/*/resources/**",
+      "tests/**",
+      "tests/*/package.json",
+      "tests/*/tsconfig*.json",
+      "pnpm-workspace.yaml",
+      "packages/*/package.json",
+      "packages/*/tsconfig*.json",
+      "biome.json",
+      "package.json",
+      "tsconfig.base.json"
+    ]
   },
   "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 100 },
   "javascript": { "formatter": { "quoteStyle": "single", "semicolons": "asNeeded" } },

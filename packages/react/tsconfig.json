@@ -7,5 +7,5 @@
       "@freepeace13/inertia-live-core/testing": ["../core/src/testing.ts"]
     }
   },
-  "include": ["src", "tests"]
+  "include": ["src"]
 }

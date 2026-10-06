@@ -5,7 +5,8 @@
   "license": "MIT",
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "resources/boost"
   ],
   "publishConfig": {
     "access": "public"
@@ -31,12 +32,12 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "pnpm build",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@freepeace13/inertia-live-core": "^0.0.0"
+    "@freepeace13/inertia-live-core": "workspace:^"
   },
   "peerDependencies": {
     "@inertiajs/vue3": "^2.0.0 || ^3.0.0",
@@ -44,7 +45,7 @@
     "vue": "^3.4.0"
   },
   "devDependencies": {
-    "@inertiajs/vue3": "^2.0.0",
+    "@inertiajs/vue3": "catalog:",
     "laravel-echo": "^2.0.0",
     "vue": "^3.4.0"
   }

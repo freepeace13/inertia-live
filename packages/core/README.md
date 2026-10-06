@@ -66,11 +66,11 @@ fake.emit('documents.a', 1)
 From the repository root:
 
 ```bash
-npm install
-npm run build       # core first, then the adapters
-npm test
-npm run typecheck
-npm run lint        # Biome (npm run format to fix)
+pnpm install
+pnpm build           # core first, then the adapters
+pnpm test
+pnpm typecheck
+pnpm lint            # Biome (pnpm format to fix)
 ```
 
 ## License

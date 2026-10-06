@@ -23,22 +23,21 @@ jobs:
     name: Client / Inertia ${{ matrix.inertia }} / React ${{ matrix.react }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      # Pin the matrix versions in the workspaces that own them, then resolve without the
-      # lockfile so each combination installs exactly one copy of React.
-      - run: >
-          npm pkg set
-          -w @freepeace13/inertia-live-react
-          "devDependencies.@inertiajs/react=${{ matrix.inertia }}"
-          "devDependencies.react=${{ matrix.react }}"
-          "devDependencies.react-dom=${{ matrix.react }}"
-          "devDependencies.@types/react=${{ matrix.react }}"
-          "devDependencies.@types/react-dom=${{ matrix.react }}"
-      - run: npm pkg set -w @freepeace13/inertia-live-vue "devDependencies.@inertiajs/vue3=${{ matrix.inertia }}"
-      - run: npm install --no-package-lock
-      - run: npm run build
-      - run: npm run lint
-      - run: npm run typecheck
-      - run: npm test
+          cache: pnpm
+      # Pin the matrix versions in the workspace catalog, then resolve without the lockfile
+      # so each combination installs exactly one copy of React.
+      - run: |
+          sed -i -E \
+            -e "s#^(  '@inertiajs/react':) .*#\1 ${{ matrix.inertia }}#" \
+            -e "s#^(  '@types/react(-dom)?':) .*#\1 ${{ matrix.react }}#" \
+            -e "s#^(  react(-dom)?:) .*#\1 ${{ matrix.react }}#" \
+            pnpm-workspace.yaml
+      - run: pnpm install --no-frozen-lockfile
+      - run: pnpm build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm test

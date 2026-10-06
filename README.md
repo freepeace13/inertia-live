@@ -151,18 +151,25 @@ The full docs live in [`inertia-live-docs`](https://github.com/freepeace13/inert
 ## Development
 
 ```
-packages/core    @freepeace13/inertia-live-core   (Vitest)
-packages/vue     @freepeace13/inertia-live-vue    (Vitest)
-packages/react   @freepeace13/inertia-live-react  (Vitest)
+packages/core    @freepeace13/inertia-live-core
+packages/vue     @freepeace13/inertia-live-vue    (+ resources/boost for Laravel Boost)
+packages/react   @freepeace13/inertia-live-react  (+ resources/boost for Laravel Boost)
+tests/core       Vitest suite for core
+tests/vue        Vitest suite for vue
+tests/react      Vitest suite for react
 ```
 
-The packages are npm workspaces. From the root:
+This is a [pnpm](https://pnpm.io) workspace (`corepack enable` picks the pinned version). The suites in `tests/` run against the packages' source, so no build is needed first. From the root:
 
 ```bash
-npm install
-npm run build
-npm test
+pnpm install
+pnpm build
+pnpm test
+pnpm typecheck
+pnpm lint
 ```
+
+The `vue` and `react` packages ship [Laravel Boost](https://laravel.com/docs/boost) guidelines and skills under `resources/boost/`.
 
 The Laravel adapter is developed in [`inertia-live-laravel`](https://github.com/freepeace13/inertia-live-laravel).
 

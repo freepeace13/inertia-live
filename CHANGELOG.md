@@ -4,6 +4,9 @@ Client and repository changes. Server changes are tracked in [freepeace13/inerti
 
 ## Unreleased
 
+### Changed
+- The repository is a pnpm workspace. Package tests move from `packages/*/tests` to `tests/{core,vue,react}`, each its own private package. `@freepeace13/inertia-live-vue` and `-react` ship Laravel Boost guidelines and skills in `resources/boost/`.
+
 ### Changed (breaking, pre-1.0)
 - The single npm package `@freepeace13/inertia-live` is split into `@freepeace13/inertia-live-core`, `@freepeace13/inertia-live-vue` and `@freepeace13/inertia-live-react` (npm workspaces under `packages/`). Imports change from `@freepeace13/inertia-live/vue` to `@freepeace13/inertia-live-vue`, `/vue/testing` to `-vue/testing`, and the root and `/testing` entries move to `-core`.
 - The Laravel adapter moves to its own repository, `freepeace13/inertia-live-laravel`, and the Composer package is renamed from `freepeace13/inertia-live-projections`.

@@ -1,8 +1,8 @@
 import type { Binding } from '@freepeace13/inertia-live-core'
+import { InertiaLive, inertiaReloader, useLive } from '@freepeace13/inertia-live-vue'
+import { createFakeLive } from '@freepeace13/inertia-live-vue/testing'
 import * as inertia from '@inertiajs/vue3'
 import { createApp, nextTick } from 'vue'
-import { InertiaLive, inertiaReloader, useLive } from '../src'
-import { createFakeLive } from '../src/testing'
 
 vi.mock('@inertiajs/vue3', async () => {
   const { reactive } = await import('vue')

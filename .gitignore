@@ -7,3 +7,6 @@ dist/
 composer.lock
 
 # Implementation plans (local only)
+
+# Local
+.pnpm-store/

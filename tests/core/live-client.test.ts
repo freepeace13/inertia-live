@@ -1,6 +1,6 @@
-import { LiveClient } from '../src'
-import { createFakeLive } from '../src/testing'
-import type { Binding, LiveProp } from '../src/types'
+import type { Binding, LiveProp } from '@freepeace13/inertia-live-core'
+import { LiveClient } from '@freepeace13/inertia-live-core'
+import { createFakeLive } from '@freepeace13/inertia-live-core/testing'
 
 const binding = (
   topic: string,

@@ -1,0 +1,12 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["vitest/globals"],
+    "paths": {
+      "@freepeace13/inertia-live-core": ["../../packages/core/src/index.ts"],
+      "@freepeace13/inertia-live-core/testing": ["../../packages/core/src/testing.ts"]
+    }
+  },
+  "include": ["."]
+}
