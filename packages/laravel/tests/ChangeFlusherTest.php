@@ -7,18 +7,21 @@ use Freepeace13\InertiaLive\Change;
 use Freepeace13\InertiaLive\ChangeBuffer;
 use Freepeace13\InertiaLive\ChangeFlusher;
 use Freepeace13\InertiaLive\Cursor\CursorRepository;
+use Freepeace13\InertiaLive\Facades\Live;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentProjector;
 use Freepeace13\InertiaLive\Tests\Fixtures\DocumentRenamed;
 use Illuminate\Contracts\Queue\Job;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Route;
 use Spatie\EventSourcing\Facades\Projectionist;
 
 beforeEach(function () {
     Event::fake([LiveChangeBroadcast::class]);
     Projectionist::addProjector(DocumentProjector::class);
+    Live::authorize('documents.{uuid}', fn () => true);
 });
 
 it('sends exactly one signal per topic per request', function () {
@@ -93,6 +96,23 @@ it('flushes after a queue job is processed', function () {
     app(ChangeBuffer::class)->add(new Change('documents.abc', 5, ['document']));
 
     event(new JobProcessed('sync', Mockery::mock(Job::class)));
+
+    Event::assertDispatchedTimes(LiveChangeBroadcast::class, 1);
+});
+
+it('fails closed and logs a warning for private topics without an authorizer', function () {
+    Log::spy();
+
+    app(ChangeBuffer::class)->add(new Change('invoices.1', 1, ['invoice']));
+    app(ChangeFlusher::class)->flush();
+
+    Event::assertNotDispatched(LiveChangeBroadcast::class);
+    Log::shouldHaveReceived('warning')->once();
+});
+
+it('still sends public topics without an authorizer', function () {
+    app(ChangeBuffer::class)->add(new Change('workspaces.1', 1, ['documents'], public: true));
+    app(ChangeFlusher::class)->flush();
 
     Event::assertDispatchedTimes(LiveChangeBroadcast::class, 1);
 });

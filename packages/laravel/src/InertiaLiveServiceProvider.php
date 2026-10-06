@@ -19,6 +19,7 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $this->app->singleton(ChangeBuffer::class);
         $this->app->singleton(TopicResolver::class);
         $this->app->singleton(ChangeFlusher::class);
+        $this->app->singleton(LiveManager::class);
         $this->app->singleton(CursorRepository::class, fn ($app) => new CacheCursorRepository(
             $app['cache']->store($app['config']->get('inertia-live.cursor_store')),
         ));

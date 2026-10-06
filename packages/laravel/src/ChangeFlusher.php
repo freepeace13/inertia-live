@@ -25,6 +25,7 @@ final class ChangeFlusher
         private readonly RateLimiter $limiter,
         private readonly Config $config,
         private readonly LoggerInterface $logger,
+        private readonly LiveManager $live,
     ) {}
 
     public function flush(): void
@@ -47,6 +48,13 @@ final class ChangeFlusher
         // The cursor tracks what the read model contains, so it is always recorded,
         // even when the signal itself is rate limited.
         $this->cursors->put($change->topic, $change->version);
+
+        // Fail closed: nobody can subscribe to a private topic without an authorizer.
+        if (! $change->public && ! $this->live->hasAuthorizerFor($change->topic)) {
+            $this->logger->warning('Inertia Live topic has no authorizer; signal not sent.', ['topic' => $change->topic]);
+
+            return;
+        }
 
         $max = (int) $this->config->get('inertia-live.max_signals_per_second', 10);
 
