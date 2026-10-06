@@ -12,7 +12,7 @@ The package lets an Inertia page stay live: when a stored event updates a projec
 
 **Value proposition.** Declare once on the server which projection changes affect which page props. The package handles broadcasting, subscribing, ordering and reloading.
 
-**Target users.** Laravel developers building collaborative or dashboard-style apps on Spatie Event Sourcing + Inertia (Vue 3 first).
+**Target users.** Laravel developers building collaborative or dashboard-style apps on Spatie Event Sourcing + Inertia (Vue 3 and React).
 
 **Goals (v1)**
 
@@ -25,7 +25,7 @@ The package lets an Inertia page stay live: when a stored event updates a projec
 
 - Collaborative text editing, CRDTs or operational transforms.
 - Presence (who is online) and typing indicators.
-- React and Svelte adapters (architecture keeps the client core framework-agnostic so they can follow).
+- Svelte and other framework adapters (the client core is framework-agnostic, so they can follow).
 - Replacing Spatie Event Sourcing or Laravel Broadcasting; the package only connects them.
 
 ## Target stack and compatibility
@@ -39,7 +39,7 @@ v1 targets the current majors only, Laravel 12/13 on PHP 8.3+, to keep the test 
 | [spatie/laravel-event-sourcing](https://laraplugins.io/plugins/spatie/laravel-event-sourcing) | ^7.14 | 7.14+ is the first line supporting Laravel 13 |
 | [inertiajs/inertia-laravel](https://laraplugins.io/plugins/inertiajs/inertia-laravel?page=2) | ^2.0 \|\| ^3.0 | [v3 shipped March 2026](https://inertiajs.com/docs/v3/getting-started); v2 bug fixes ended Sept 2026 |
 | Broadcasting | Reverb (default), Pusher, Ably | Any Echo-compatible driver; Reverb is first-party |
-| Client | Vue 3.4+, laravel-echo 2.x | Vue first; client core stays framework-agnostic |
+| Client | Vue 3.4+ or React 18/19, laravel-echo 2.x | Thin adapters over a framework-agnostic core; the adapter you do not use is an optional peer dependency |
 
 The package only uses Inertia features present in both v2 and v3 (shared props, partial reloads via `only`), so supporting both costs little. Drop v2 once its security support ends in March 2027.
 
@@ -143,9 +143,9 @@ return Inertia::render('Documents/Show', [
 | `CursorRepository` | Stores and reads the last applied version per topic (default: cache store) |
 | `LiveResponseMacro` | Registers `->live()` on `Inertia\Response` |
 
-## Client-side API (Vue 3)
+## Client-side API (Vue 3 and React)
 
-One plugin install makes every page with a `_live` prop live automatically; a composable exists for status UI and manual control.
+One install makes every page with a `_live` prop live automatically; a composable or hook exists for status UI and manual control. Vue and React expose the same behaviour; only the wiring differs.
 
 **Install once in `app.ts`**
 
@@ -181,7 +181,25 @@ const { status, lastSyncedAt, pause, resume, refresh } = useLive()
 
 Use `pause()` while a user edits a form so a reload does not interrupt them; queued signals flush on `resume()`.
 
-**Client core layout.** `LiveClient` (framework-agnostic: subscriptions, cursors, debounce queue) plus a thin `vue` adapter. A React adapter later reuses `LiveClient` unchanged.
+**React.** Instead of a plugin, wrap the app in `InertiaLiveProvider` and read state with the `useLive()` hook, which returns the same `{ status, lastSyncedAt, pause, resume, refresh }`.
+
+```tsx
+import { InertiaLiveProvider } from '@freepeace13/inertia-live/react'
+import { echo } from './echo'
+
+// Persistent layout: it must render inside the Inertia tree because the provider reads usePage().
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return <InertiaLiveProvider echo={echo} debounceMs={150}>{children}</InertiaLiveProvider>
+}
+```
+
+Behaviour differences from Vue:
+
+- The provider reads the page with `usePage()`, which only works inside Inertia's component tree, so it lives in a persistent layout rather than around `<App>`. A non-persistent layout still works but recreates the client on every navigation.
+- The client is created in an effect and destroyed on cleanup, so React StrictMode's double mount neither leaks subscriptions nor sends duplicate reloads.
+- `useLive()` is built on `useSyncExternalStore`; before the client exists (first render, SSR) it reports `status: 'connecting'`.
+
+**Client core layout.** `LiveClient` (framework-agnostic: subscriptions, cursors, debounce queue) plus thin `vue` and `react` adapters. Both reuse `LiveClient` unchanged and add only page watching, a `router.reload` reloader and a status binding.
 
 ## Consistency rules
 
@@ -248,7 +266,7 @@ Live::assertNothingChangedFor('documents.other-uuid');
 Live::assertChangedTimes("documents.{$doc->uuid}", 1); // proves coalescing
 ```
 
-**Testing helpers (Vue, Vitest).** `createFakeLive()` returns a fake Echo that tests drive with `emit(topic, version)`, then assert on the `router.reload` calls it captured.
+**Testing helpers (Vue and React, Vitest).** `createFakeLive()` returns a fake Echo that tests drive with `emit(topic, version)`, then assert on the `router.reload` calls it captured. The Vue version returns plugin `options`; the React version returns `providerProps`.
 
 **Repository layout (monorepo)**
 
@@ -262,6 +280,7 @@ inertia-live/
 │   └── client/           # npm package
 │       ├── src/core/     # LiveClient, framework-agnostic
 │       ├── src/vue/      # plugin + useLive
+│       ├── src/react/    # InertiaLiveProvider + useLive
 │       └── tests/        # Vitest
 ├── demo/                 # Laravel 13 + Vue demo app
 └── .github/workflows/    # matrix: PHP 8.3-8.5 x Laravel 12-13 x Inertia 2-3
@@ -274,12 +293,14 @@ Ship v0.1 as soon as M2 passes; a small, tagged, documented release beats a comp
 1. **M1 — Signal path (1–2 weeks).** `#[LiveTopic]`, `EmitsLiveChanges`, `ChangeBuffer`, after-commit flush, private channel broadcast. Exit: a Pest test proves one signal per topic per request, sent only after commit.
 2. **M2 — Vue plugin, invalidate mode (1–2 weeks).** `->live()` macro, `_live` prop, `LiveClient` subscriptions, debounce, partial reload. Exit: two browser tabs on the demo page stay in sync. **Tag v0.1.**
 3. **M3 — Correctness (1 week).** Cursors, stale-signal dropping, reconnect reload, replay suppression, rate limit. Exit: tests for each row of Consistency rules.
-4. **M4 — Developer experience (1 week).** `Live::fake()`, Vitest fake, README with a 5-minute quick start, Laravel 12/13 x Inertia 2/3 CI matrix. **Tag v1.0, publish to Packagist and npm.**
-5. **M5 — Demo app and launch.** The hiring-screening chat (real-time candidate threads, AI bot participants) deployed with a public URL; write-up on Laravel News or dev.to; LinkedIn post.
-6. **Later.** Opt-in push mode, presence, React adapter.
+4. **M4 — React adapter (about 1 week).** `InertiaLiveProvider`, `useLive()` hook, fake helper, StrictMode-safe lifecycle, no changes to `LiveClient`. Exit: the same adapter tests as Vue pass, plus a StrictMode test.
+5. **M5 — Developer experience (1 week).** `Live::fake()`, Vitest fakes, README with a 5-minute quick start for Vue and React, Laravel 12/13 x Inertia 2/3 CI matrix. **Tag v1.0, publish to Packagist and npm.**
+6. **M6 — Demo app and launch.** The hiring-screening chat (real-time candidate threads, AI bot participants) deployed with a public URL; write-up on Laravel News or dev.to; LinkedIn post.
+7. **Later.** Opt-in push mode, presence, Svelte adapter.
 
 **Open questions**
 
+- [ ] React: ship a helper that injects the provider through Inertia's `createInertiaApp` (if a supported hook exists in v2 and v3) so apps do not need a persistent layout.
 - [ ] Package name: `inertia-live-projections` vs shorter `inertia-live` (check Packagist and npm availability).
 - [ ] Should non-event-sourced Eloquent models be able to emit signals too (wider audience, weaker DDD focus)?
 - [ ] Cursor store default: cache vs a small `live_cursors` table for durability.

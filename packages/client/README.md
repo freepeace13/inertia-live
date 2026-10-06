@@ -43,6 +43,44 @@ fake.emit('documents.a', 1)
 // after the debounce window: fake.reloads === [['document']]
 ```
 
+## React quick start
+
+Render `InertiaLiveProvider` inside the Inertia tree, in a persistent layout. It reads the current page with `usePage()`, so it cannot wrap `<App>` itself.
+
+```tsx
+import { InertiaLiveProvider } from '@freepeace13/inertia-live/react'
+import { echo } from './echo' // your configured laravel-echo instance
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <InertiaLiveProvider echo={echo} debounceMs={150}>
+      {children}
+    </InertiaLiveProvider>
+  )
+}
+
+// Pages: Show.layout = (page) => <AppLayout>{page}</AppLayout>
+```
+
+Status UI and manual control:
+
+```tsx
+import { useLive } from '@freepeace13/inertia-live/react'
+
+const { status, lastSyncedAt, pause, resume, refresh } = useLive()
+```
+
+Testing:
+
+```tsx
+import { createFakeLive } from '@freepeace13/inertia-live/react/testing'
+
+const fake = createFakeLive()
+render(<InertiaLiveProvider {...fake.providerProps}>{children}</InertiaLiveProvider>)
+fake.emit('documents.a', 1)
+// after the debounce window: fake.reloads === [['document']]
+```
+
 ## Framework-agnostic usage
 
 ```ts
