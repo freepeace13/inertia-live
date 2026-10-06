@@ -40,6 +40,7 @@ export class LiveClient {
   private reloading = false
   private destroyed = false
   private synced: Date | null = null
+  private readonly syncListeners = new Set<(at: Date) => void>()
 
   constructor(options: LiveClientOptions) {
     this.echo = options.echo
@@ -66,6 +67,12 @@ export class LiveClient {
 
   onStatus(listener: (status: LiveStatus) => void): () => void {
     return this.tracker.onChange((status) => listener(status))
+  }
+
+  /** Called whenever a reload finishes or fresh cursors arrive. Returns an unsubscribe function. */
+  onSynced(listener: (at: Date) => void): () => void {
+    this.syncListeners.add(listener)
+    return () => this.syncListeners.delete(listener)
   }
 
   /** Make subscriptions match the page's bindings: join new channels, leave removed ones. */
@@ -101,7 +108,7 @@ export class LiveClient {
     for (const binding of liveProp?.bindings ?? []) {
       this.cursors.raise(binding.topic, binding.cursor)
     }
-    this.synced = new Date()
+    this.markSynced()
   }
 
   /** Hold reloads (e.g. while a form is being edited). Signals keep queueing. */
@@ -134,6 +141,7 @@ export class LiveClient {
     this.bindings.clear()
     this.unsubscribeTracker()
     this.tracker.destroy()
+    this.syncListeners.clear()
   }
 
   private receive(channel: string, signal: ChangeSignal): void {
@@ -171,7 +179,7 @@ export class LiveClient {
     this.reloading = true
     try {
       await this.reloader(props)
-      this.synced = new Date()
+      this.markSynced()
     } catch (error) {
       this.onError?.(error)
     } finally {
@@ -179,6 +187,11 @@ export class LiveClient {
       // Signals that arrived mid-flight need one follow-up reload.
       if (this.pending.size > 0 && !this.destroyed) this.schedule()
     }
+  }
+
+  private markSynced(): void {
+    this.synced = new Date()
+    for (const listener of this.syncListeners) listener(this.synced)
   }
 
   private boundProps(): string[] {

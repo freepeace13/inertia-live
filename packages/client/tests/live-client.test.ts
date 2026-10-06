@@ -266,6 +266,24 @@ describe('afterReload', () => {
   })
 })
 
+describe('onSynced', () => {
+  it('notifies after a reload and after afterReload, until unsubscribed', async () => {
+    const { fake, client } = setup()
+    const seen: Date[] = []
+    const off = client.onSynced((at) => seen.push(at))
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1)
+    await vi.advanceTimersByTimeAsync(150)
+    client.afterReload(page(binding('documents.a', ['document'], 1)))
+    expect(seen).toHaveLength(2)
+
+    off()
+    await client.refresh()
+    expect(seen).toHaveLength(2)
+  })
+})
+
 describe('connection status', () => {
   it('tracks the connection state', () => {
     const { fake, client } = setup()

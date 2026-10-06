@@ -19,6 +19,10 @@
     "./vue": {
       "types": "./dist/vue/index.d.ts",
       "import": "./dist/vue/index.js"
+    },
+    "./vue/testing": {
+      "types": "./dist/vue/testing.d.ts",
+      "import": "./dist/vue/testing.js"
     }
   },
   "scripts": {
