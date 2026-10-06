@@ -1,11 +1,31 @@
 name: CI
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 on:
   push:
     branches: [main]
   pull_request:
 
 jobs:
+  laravel-lint:
+    runs-on: ubuntu-latest
+    name: Laravel lint and static analysis
+    defaults:
+      run:
+        working-directory: packages/laravel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - run: composer update --prefer-dist --no-interaction
+      - run: composer lint
+      - run: composer analyse
+
   laravel:
     runs-on: ubuntu-latest
     strategy:
@@ -42,6 +62,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: npm install
+      - run: npm ci
+      - run: npm run lint
       - run: npm run typecheck
       - run: npm test

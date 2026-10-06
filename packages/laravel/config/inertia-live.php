@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 return [
     'enabled' => env('INERTIA_LIVE_ENABLED', true),
     'channel_prefix' => 'live',

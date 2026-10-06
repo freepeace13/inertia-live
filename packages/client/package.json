@@ -4,15 +4,25 @@
   "description": "Client for Inertia Live Projections.",
   "license": "MIT",
   "type": "module",
-  "files": ["dist"],
+  "files": [
+    "dist"
+  ],
   "exports": {
-    ".": { "types": "./dist/core/index.d.ts", "import": "./dist/core/index.js" },
-    "./vue": { "types": "./dist/vue/index.d.ts", "import": "./dist/vue/index.js" }
+    ".": {
+      "types": "./dist/core/index.d.ts",
+      "import": "./dist/core/index.js"
+    },
+    "./vue": {
+      "types": "./dist/vue/index.d.ts",
+      "import": "./dist/vue/index.js"
+    }
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check .",
+    "format": "biome check --write ."
   },
   "peerDependencies": {
     "@inertiajs/vue3": "^2.0.0 || ^3.0.0",
@@ -24,6 +34,7 @@
     "laravel-echo": "^2.0.0",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0",
-    "vue": "^3.4.0"
+    "vue": "^3.4.0",
+    "@biomejs/biome": "^2.0.0"
   }
 }
