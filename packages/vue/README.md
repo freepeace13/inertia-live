@@ -52,9 +52,11 @@ Optional status UI and manual control:
 ```ts
 import { useLive } from '@freepeace13/inertia-live-vue'
 
-const { status, lastSyncedAt, pause, resume, refresh } = useLive()
+const { status, lastSyncedAt, stale, pause, resume, refresh } = useLive()
 // status: 'connecting' | 'live' | 'reconnecting' | 'offline'
 ```
+
+`stale` is a ref that turns true when reloads gave up after repeated failures (the page may show outdated data) and clears on the next successful reload. Use it to show a "data may be out of date" banner with a `refresh()` button.
 
 Call `pause()` while a user edits a form so a reload does not interrupt them; queued signals flush on `resume()`.
 

@@ -38,6 +38,7 @@ const client = new LiveClient({
 })
 
 client.sync(page.props._live) // on every navigation
+client.stale // true after reloads gave up; client.onStale(fn) to listen
 client.pause() // while a form is being edited
 client.resume()
 ```

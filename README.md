@@ -103,7 +103,7 @@ export default function AppLayout({ children }) {
 }
 ```
 
-Both expose `useLive()` for `{ status, lastSyncedAt, pause, resume, refresh }`. Call `pause()` while a user edits a form. → [Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/vue.md), [React](https://github.com/freepeace13/inertia-live-docs/blob/main/react.md), [Client core](https://github.com/freepeace13/inertia-live-docs/blob/main/client-core.md)
+Both expose `useLive()` for `{ status, lastSyncedAt, stale, pause, resume, refresh }`. Call `pause()` while a user edits a form. → [Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/vue.md), [React](https://github.com/freepeace13/inertia-live-docs/blob/main/react.md), [Client core](https://github.com/freepeace13/inertia-live-docs/blob/main/client-core.md)
 
 Want to see it running first? Clone the [demo app](https://github.com/freepeace13/inertia-live-demo).
 

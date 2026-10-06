@@ -37,7 +37,7 @@ A page needs nothing extra: if its controller returns `->live("documents.{$doc->
 ```ts
 import { useLive } from '@freepeace13/inertia-live-vue'
 
-const { status, lastSyncedAt, pause, resume, refresh } = useLive()
+const { status, lastSyncedAt, stale, pause, resume, refresh } = useLive()
 ```
 
 - `status`: `'connecting' | 'live' | 'reconnecting' | 'offline'`

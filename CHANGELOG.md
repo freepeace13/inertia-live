@@ -2,6 +2,11 @@
 
 Client and repository changes. Server changes are tracked in [freepeace13/inertia-live-laravel](https://github.com/freepeace13/inertia-live-laravel/blob/main/CHANGELOG.md).
 
+## 0.1.1 - 2026-10-07
+
+### Changed
+- Documentation: `stale` / `onStale()` in the core, Vue and React READMEs and the Boost guidelines.
+
 ## 0.1.0 - 2026-10-07
 
 ### Changed
