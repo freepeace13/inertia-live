@@ -54,6 +54,15 @@ jobs:
 
   client:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Inertia 3 requires React 19.
+          - { inertia: '^2', react: '^19' }
+          - { inertia: '^3', react: '^19' }
+          - { inertia: '^2', react: '^18' }
+    name: Client / Inertia ${{ matrix.inertia }} / React ${{ matrix.react }}
     defaults:
       run:
         working-directory: packages/client
@@ -63,6 +72,15 @@ jobs:
         with:
           node-version: 22
       - run: npm ci
+      - run: >
+          npm install --no-save
+          "@inertiajs/react@${{ matrix.inertia }}"
+          "@inertiajs/vue3@${{ matrix.inertia }}"
+          "react@${{ matrix.react }}"
+          "react-dom@${{ matrix.react }}"
+          "@types/react@${{ matrix.react }}"
+          "@types/react-dom@${{ matrix.react }}"
       - run: npm run lint
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
