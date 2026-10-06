@@ -37,5 +37,12 @@
         "lint": "pint --test",
         "format": "pint",
         "analyse": "phpstan analyse --memory-limit=1G"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Freepeace13\\InertiaLive\\InertiaLiveServiceProvider"
+            ]
+        }
     }
 }
