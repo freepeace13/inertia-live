@@ -11,6 +11,9 @@ final class InertiaLiveServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->mergeConfigFrom(__DIR__.'/../config/inertia-live.php', 'inertia-live');
+
+        $this->app->singleton(ChangeBuffer::class);
+        $this->app->singleton(TopicResolver::class);
     }
 
     public function boot(): void

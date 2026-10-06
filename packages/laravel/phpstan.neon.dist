@@ -7,3 +7,6 @@ parameters:
         - src
     treatPhpDocTypesAsCertain: false
     reportUnmatchedIgnoredErrors: false
+    ignoreErrors:
+        -
+            identifier: trait.unused
