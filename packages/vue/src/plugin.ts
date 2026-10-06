@@ -26,12 +26,35 @@ export interface InertiaLiveOptions {
   onError?: (error: unknown) => void
 }
 
+/** Stands in for the client during SSR: always `connecting`, never subscribes or reloads. */
+function serverClient(): LiveClient {
+  const inert = {
+    status: 'connecting',
+    lastSyncedAt: null,
+    onStatus: () => () => {},
+    onSynced: () => () => {},
+    sync: () => {},
+    pause: () => () => {},
+    resume: () => {},
+    resetPause: () => {},
+    refresh: async () => {},
+    destroy: () => {},
+  }
+  return inert as unknown as LiveClient
+}
+
 /**
  * Makes every page that carries a `_live` prop live: subscribes to its channels and
  * partially reloads the bound props when a change signal arrives.
  */
 export const InertiaLive: Plugin<[InertiaLiveOptions]> = {
   install(app, options) {
+    // No sockets or router listeners on the server: provide an inert client so `useLive()` works.
+    if (typeof window === 'undefined') {
+      app.provide(LIVE_CLIENT_KEY, serverClient())
+      return
+    }
+
     const client = new LiveClient({
       echo: options.echo,
       reload: options.reload ?? inertiaReloader,

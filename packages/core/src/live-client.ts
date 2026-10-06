@@ -9,6 +9,7 @@ import type {
   LiveStatus,
   Reloader,
 } from './types.js'
+import { ReloadCancelled } from './types.js'
 
 export interface LiveClientOptions {
   echo: EchoLike
@@ -42,13 +43,19 @@ export class LiveClient {
   private readonly tracker: ConnectionTracker
   private readonly bindings = new Map<string, Binding>() // by channel
   private readonly pending = new Set<string>()
-  /** Channels subscribed since their last `_live` refresh: a cursor jump there means a missed signal. */
-  private readonly verifying = new Set<string>()
+  /**
+   * Channels subscribed since their last `_live` refresh: a cursor jump there means a missed
+   * signal. The value is `runSeq` when the subscription was confirmed; only a reload started
+   * after that can vouch for the channel, because an earlier request may predate the ack.
+   */
+  private readonly verifying = new Map<string, number>()
+  private readonly holds = new Set<symbol>()
   private readonly unsubscribeTracker: () => void
 
   private timer: ReturnType<typeof setTimeout> | null = null
-  private pauses = 0
   private reloading = false
+  private inFlight: Promise<void> | null = null
+  private runSeq = 0
   private failures = 0
   private burstStart: number | null = null
   private destroyed = false
@@ -107,8 +114,10 @@ export class LiveClient {
     for (const [channel, binding] of next) {
       // A fresh cursor ahead of ours, right after subscribing, means a signal slipped through
       // between render and subscription. The props in this response may predate it.
-      const missed = this.verifying.has(channel) && binding.cursor > this.cursors.get(binding.topic)
-      this.verifying.delete(channel)
+      const ackedAt = this.verifying.get(channel)
+      const vouched = ackedAt !== undefined && this.runSeq > ackedAt
+      const missed = vouched && binding.cursor > this.cursors.get(binding.topic)
+      if (vouched) this.verifying.delete(channel)
       this.cursors.raise(binding.topic, binding.cursor)
       if (missed) {
         for (const prop of binding.props) this.pending.add(prop)
@@ -141,28 +150,31 @@ export class LiveClient {
    * this one. `useLive()` does that for you when its component goes away.
    */
   pause(): () => void {
-    this.pauses += 1
+    const token = Symbol('pause')
+    this.holds.add(token)
     this.clearTimer()
     this.burstStart = null
 
-    let released = false
-    return () => {
-      if (released) return
-      released = true
-      this.resume()
-    }
+    // Releasing deletes only this hold, so a release that outlives `resetPause()` cannot
+    // lift a pause someone else took on the next page.
+    return () => this.release(token)
   }
 
-  /** Release one pause. Reloads run again, flushing anything queued, once none are left. */
+  /** Release the most recent pause. Prefer the function `pause()` returns. */
   resume(): void {
-    if (this.pauses > 0) this.pauses -= 1
-    if (this.pauses === 0 && this.pending.size > 0) this.schedule()
+    const latest = [...this.holds].pop()
+    if (latest) this.release(latest)
   }
 
   /** Drop every pause, e.g. on navigation: whatever paused the old page is gone. */
   resetPause(): void {
-    this.pauses = 0
+    this.holds.clear()
     if (this.pending.size > 0) this.schedule()
+  }
+
+  private release(token: symbol): void {
+    if (!this.holds.delete(token)) return
+    if (this.holds.size === 0 && this.pending.size > 0) this.schedule()
   }
 
   /** Reload every bound prop now. */
@@ -172,6 +184,14 @@ export class LiveClient {
 
     this.clearTimer()
     this.burstStart = null
+
+    // Reloads never overlap: queue behind the one in flight, which runs a follow-up when it ends.
+    if (this.reloading) {
+      for (const prop of props) this.pending.add(prop)
+      await this.inFlight
+      return
+    }
+
     this.pending.clear()
     await this.run(props)
   }
@@ -190,7 +210,7 @@ export class LiveClient {
 
   /** After a reconnect every bound prop may be stale. Paused clients queue it instead of reloading. */
   private catchUp(): void {
-    if (this.pauses === 0) {
+    if (this.holds.size === 0) {
       void this.refresh()
       return
     }
@@ -219,13 +239,15 @@ export class LiveClient {
   /** The channel just subscribed: re-read `_live` so `sync()` can spot a missed signal. */
   private verify(channel: string): void {
     if (this.destroyed || !this.bindings.has(channel)) return
-    this.verifying.add(channel)
-    // An in-flight reload brings a fresh `_live` anyway.
-    if (!this.reloading) void this.run(['_live'])
+    this.verifying.set(channel, this.runSeq)
+    // One debounced `_live` read covers every channel confirmed in the same burst, and
+    // runs after any in-flight reload, whose response may predate this ack.
+    this.pending.add('_live')
+    this.schedule()
   }
 
   private schedule(): void {
-    if (this.pauses > 0 || this.reloading) return // a follow-up is scheduled when the reload ends
+    if (this.holds.size > 0 || this.reloading) return // a follow-up is scheduled when the reload ends
 
     this.clearTimer()
 
@@ -260,13 +282,25 @@ export class LiveClient {
     void this.run(props)
   }
 
-  private async run(props: string[]): Promise<void> {
+  private run(props: string[]): Promise<void> {
     this.reloading = true
+    this.runSeq += 1
+    const done = this.execute(props)
+    this.inFlight = done
+    return done
+  }
+
+  private async execute(props: string[]): Promise<void> {
     try {
       await this.reloader(props)
       this.failures = 0
       this.markSynced()
     } catch (error) {
+      if (error instanceof ReloadCancelled) {
+        // Another visit pre-empted this reload. Not a failure: just try again.
+        if (!this.destroyed) for (const prop of props) this.pending.add(prop)
+        return
+      }
       this.onError?.(error)
       // The cursor already moved past this change, so no later signal re-delivers it: retry.
       this.failures += 1
@@ -277,6 +311,7 @@ export class LiveClient {
       }
     } finally {
       this.reloading = false
+      this.inFlight = null
       // Signals that arrived mid-flight (or a failed reload) need a follow-up reload.
       if (this.pending.size > 0 && !this.destroyed) this.schedule()
     }

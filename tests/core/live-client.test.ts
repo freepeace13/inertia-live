@@ -1,5 +1,5 @@
 import type { Binding, LiveProp } from '@freepeace13/inertia-live-core'
-import { LiveClient } from '@freepeace13/inertia-live-core'
+import { LiveClient, ReloadCancelled } from '@freepeace13/inertia-live-core'
 import { createFakeLive } from '@freepeace13/inertia-live-core/testing'
 
 const binding = (
@@ -513,5 +513,116 @@ describe('pause and reconnect', () => {
     release()
     await vi.advanceTimersByTimeAsync(0)
     expect(fake.reloads).toEqual([['document']])
+  })
+})
+
+describe('pause tokens', () => {
+  it('a release from before resetPause does not lift a newer pause', async () => {
+    const { fake, client } = setup({ debounceMs: 0 })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    const stale = client.pause()
+    client.resetPause() // navigation
+    client.pause() // the next page pauses
+    fake.emit('documents.a', 1)
+
+    stale()
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.reloads).toEqual([])
+  })
+})
+
+describe('reload pipeline', () => {
+  it('retries a cancelled reload without counting a failure', async () => {
+    const errors: unknown[] = []
+    const fake = createFakeLive()
+    let calls = 0
+    const client = new LiveClient({
+      echo: fake.echo,
+      debounceMs: 0,
+      onError: (error) => errors.push(error),
+      reload: async (only) => {
+        calls += 1
+        if (calls === 1) throw new ReloadCancelled()
+        fake.reloads.push(only)
+      },
+    })
+    fake.setConnectionState('connected')
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(errors).toEqual([])
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('refresh queues behind an in-flight reload instead of overlapping it', async () => {
+    const fake = createFakeLive()
+    let active = 0
+    let maxActive = 0
+    const client = new LiveClient({
+      echo: fake.echo,
+      debounceMs: 0,
+      reload: async (only) => {
+        active += 1
+        maxActive = Math.max(maxActive, active)
+        await new Promise((resolve) => setTimeout(resolve, 50))
+        fake.reloads.push(only)
+        active -= 1
+      },
+    })
+    fake.setConnectionState('connected')
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1)
+    const refreshed = client.refresh()
+    await vi.advanceTimersByTimeAsync(200)
+    await refreshed
+
+    expect(maxActive).toBe(1)
+    expect(fake.reloads.length).toBe(2)
+  })
+
+  it('verifies several new channels with a single _live read', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('a', ['x'], 1), binding('b', ['y'], 1), binding('c', ['z'], 1)))
+
+    for (const topic of ['a', 'b', 'c']) fake.confirmSubscription(topic)
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['_live']])
+  })
+
+  it('ignores a response that predates the subscription ack', async () => {
+    const fake = createFakeLive()
+    let release!: () => void
+    let first = true
+    const client = new LiveClient({
+      echo: fake.echo,
+      debounceMs: 0,
+      reload: async (only) => {
+        fake.reloads.push(only)
+        if (first) {
+          first = false
+          await new Promise<void>((resolve) => {
+            release = resolve
+          })
+        }
+      },
+    })
+    fake.setConnectionState('connected')
+    client.sync(page(binding('a', ['x'], 1), binding('b', ['y'], 1)))
+    fake.emit('b', 2) // starts a reload for `y`
+    await vi.advanceTimersByTimeAsync(0)
+
+    fake.confirmSubscription('a') // acked while that reload is still in flight
+    client.sync(page(binding('a', ['x'], 5), binding('b', ['y'], 2))) // its response arrives
+    release()
+    await vi.advanceTimersByTimeAsync(0)
+
+    // The in-flight response cannot vouch for `a`; a fresh `_live` read follows.
+    expect(fake.reloads).toEqual([['y'], ['_live']])
   })
 })

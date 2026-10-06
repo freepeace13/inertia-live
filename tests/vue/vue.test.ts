@@ -46,12 +46,14 @@ function install(options: Parameters<typeof createFakeLive>[0] = {}) {
 }
 
 beforeEach(() => {
+  vi.stubGlobal('window', {}) // the plugin is inert on the server
   vi.useFakeTimers()
   page.props = {}
   vi.mocked(inertia.router.reload).mockClear()
 })
 
 afterEach(() => {
+  vi.unstubAllGlobals()
   vi.useRealTimers()
   vi.restoreAllMocks()
 })
@@ -269,5 +271,18 @@ describe('createFakeLive (vue)', () => {
     first.resume()
     await vi.advanceTimersByTimeAsync(150)
     expect(fake.reloads).toEqual([['document']])
+  })
+})
+
+describe('InertiaLive plugin on the server', () => {
+  it('stays inert: no subscriptions, no router listeners, useLive() still works', () => {
+    vi.unstubAllGlobals() // node has no `window`
+    const fake = createFakeLive()
+    const app = createApp({ render: () => null })
+    app.use(InertiaLive, fake.options)
+    navigate(binding('documents.a', ['document']))
+
+    expect(fake.joined.size).toBe(0)
+    expect(inertia.router.on).not.toHaveBeenCalled()
   })
 })

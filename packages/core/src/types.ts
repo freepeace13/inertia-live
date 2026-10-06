@@ -45,3 +45,11 @@ export interface ConnectionLike {
   bind(event: string, callback: (payload: { current: string }) => void): unknown
   unbind(event: string, callback?: (payload: { current: string }) => void): unknown
 }
+
+/** Reject with this when another visit cancelled the reload: it is retried, not counted as a failure. */
+export class ReloadCancelled extends Error {
+  constructor() {
+    super('Live reload was cancelled by another visit.')
+    this.name = 'ReloadCancelled'
+  }
+}

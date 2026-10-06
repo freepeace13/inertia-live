@@ -12,3 +12,4 @@ export type {
   LiveStatus,
   Reloader,
 } from './types.js'
+export { ReloadCancelled } from './types.js'
