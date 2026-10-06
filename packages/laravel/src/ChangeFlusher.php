@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Freepeace13\InertiaLive;
 
 use Freepeace13\InertiaLive\Broadcasting\LiveChangeBroadcast;
+use Freepeace13\InertiaLive\Contracts\FlushesChanges;
 use Freepeace13\InertiaLive\Cursor\CursorRepository;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Config\Repository as Config;
@@ -15,7 +16,7 @@ use Psr\Log\LoggerInterface;
 /**
  * Turns buffered changes into broadcasts once the database transaction has committed.
  */
-final class ChangeFlusher
+final class ChangeFlusher implements FlushesChanges
 {
     public function __construct(
         private readonly ChangeBuffer $buffer,

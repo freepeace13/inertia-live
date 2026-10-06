@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Freepeace13\InertiaLive;
 
+use Freepeace13\InertiaLive\Contracts\FlushesChanges;
 use Freepeace13\InertiaLive\Cursor\CacheCursorRepository;
 use Freepeace13\InertiaLive\Cursor\CursorRepository;
 use Illuminate\Queue\Events\JobFailed;
@@ -21,6 +22,7 @@ final class InertiaLiveServiceProvider extends ServiceProvider
         $this->app->singleton(ReplayBuffer::class);
         $this->app->singleton(TopicResolver::class);
         $this->app->singleton(ChangeFlusher::class);
+        $this->app->bind(FlushesChanges::class, ChangeFlusher::class);
         $this->app->singleton(LiveManager::class);
         $this->app->bind(LiveBindings::class);
         $this->app->singleton(CursorRepository::class, fn ($app) => new CacheCursorRepository(
@@ -46,7 +48,7 @@ final class InertiaLiveServiceProvider extends ServiceProvider
      */
     private function registerFlushPoints(): void
     {
-        $flush = fn () => $this->app->make(ChangeFlusher::class)->flush();
+        $flush = fn () => $this->app->make(FlushesChanges::class)->flush();
 
         $this->app->terminating($flush);
 
