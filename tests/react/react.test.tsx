@@ -249,6 +249,31 @@ describe('useLive', () => {
     expect(fake.reloads).toEqual([['document']])
   })
 
+  it('applies a pause requested in a child mount effect before the client exists', async () => {
+    const fake = createFakeLive()
+    current.props = pageWith(binding('documents.a', ['document']))
+
+    function PauseOnce() {
+      const live = useLive()
+      useEffect(() => {
+        live.pause()
+      }, [])
+      return null
+    }
+
+    render(
+      <InertiaLiveProvider {...fake.providerProps}>
+        <PauseOnce />
+      </InertiaLiveProvider>,
+    )
+    await act(async () => {
+      fake.emit('documents.a', 1)
+      await vi.advanceTimersByTimeAsync(1000)
+    })
+
+    expect(fake.reloads).toEqual([])
+  })
+
   it('releases a component pause when it unmounts without resuming', async () => {
     const fake = createFakeLive()
     current.props = pageWith(binding('documents.a', ['document']))

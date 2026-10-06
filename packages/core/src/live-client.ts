@@ -61,6 +61,8 @@ export class LiveClient {
   private destroyed = false
   private synced: Date | null = null
   private readonly syncListeners = new Set<(at: Date) => void>()
+  private isStale = false
+  private readonly staleListeners = new Set<(stale: boolean) => void>()
 
   constructor(options: LiveClientOptions) {
     this.echo = options.echo
@@ -84,6 +86,17 @@ export class LiveClient {
 
   get lastSyncedAt(): Date | null {
     return this.synced
+  }
+
+  /** True once reloads gave up after repeated failures: the page may show outdated data. */
+  get stale(): boolean {
+    return this.isStale
+  }
+
+  /** Called when `stale` flips. A later successful reload clears it. Returns an unsubscribe function. */
+  onStale(listener: (stale: boolean) => void): () => void {
+    this.staleListeners.add(listener)
+    return () => this.staleListeners.delete(listener)
   }
 
   onStatus(listener: (status: LiveStatus) => void): () => void {
@@ -206,6 +219,7 @@ export class LiveClient {
     this.unsubscribeTracker()
     this.tracker.destroy()
     this.syncListeners.clear()
+    this.staleListeners.clear()
   }
 
   /** After a reconnect every bound prop may be stale. Paused clients queue it instead of reloading. */
@@ -306,6 +320,7 @@ export class LiveClient {
       this.failures += 1
       if (this.failures > MAX_RETRIES) {
         this.failures = 0 // give up; refresh() or the next signal recovers
+        this.setStale(true)
       } else if (!this.destroyed) {
         for (const prop of props) this.pending.add(prop)
       }
@@ -317,7 +332,14 @@ export class LiveClient {
     }
   }
 
+  private setStale(stale: boolean): void {
+    if (this.isStale === stale) return
+    this.isStale = stale
+    for (const listener of this.staleListeners) listener(stale)
+  }
+
   private markSynced(): void {
+    this.setStale(false)
     this.synced = new Date()
     for (const listener of this.syncListeners) listener(this.synced)
   }

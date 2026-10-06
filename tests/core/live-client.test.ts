@@ -626,3 +626,31 @@ describe('reload pipeline', () => {
     expect(fake.reloads).toEqual([['y'], ['_live']])
   })
 })
+
+describe('stale', () => {
+  it('flags the client stale after giving up and clears it on the next good reload', async () => {
+    const fake = createFakeLive()
+    let failing = true
+    const client = new LiveClient({
+      echo: fake.echo,
+      debounceMs: 0,
+      reload: async () => {
+        if (failing) throw new Error('boom')
+      },
+    })
+    fake.setConnectionState('connected')
+    const changes: boolean[] = []
+    client.onStale((stale) => changes.push(stale))
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1)
+    await vi.advanceTimersByTimeAsync(120_000)
+    expect(client.stale).toBe(true)
+
+    failing = false
+    await client.refresh()
+
+    expect(client.stale).toBe(false)
+    expect(changes).toEqual([true, false])
+  })
+})

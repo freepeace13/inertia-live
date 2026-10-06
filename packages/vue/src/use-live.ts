@@ -5,6 +5,8 @@ import { LIVE_CLIENT_KEY } from './key.js'
 export interface UseLive {
   status: Ref<LiveStatus>
   lastSyncedAt: Ref<Date | null>
+  /** True when reloads gave up after repeated failures and the page may be outdated. */
+  stale: Ref<boolean>
   /** Hold reloads, e.g. while a form is being edited. Signals keep queueing. */
   pause: () => void
   /** Resume reloads, flushing anything queued while paused. */
@@ -22,11 +24,14 @@ export function useLive(): UseLive {
 
   const status = ref<LiveStatus>(client.status)
   const lastSyncedAt = ref<Date | null>(client.lastSyncedAt)
+  const stale = ref(client.stale)
 
   // Pauses held by this component only: resume() never releases another component's pause,
   // and they are all released when this component goes away.
   const held: Array<() => void> = []
-  const releaseAll = () => held.splice(0).forEach((release) => release())
+  const releaseAll = () => {
+    for (const release of held.splice(0)) release()
+  }
 
   const stops = [
     client.onStatus((next) => {
@@ -35,17 +40,21 @@ export function useLive(): UseLive {
     client.onSynced((at) => {
       lastSyncedAt.value = at
     }),
+    client.onStale((next) => {
+      stale.value = next
+    }),
   ]
 
   if (getCurrentScope())
     onScopeDispose(() => {
-      stops.forEach((stop) => stop())
+      for (const stop of stops) stop()
       releaseAll()
     })
 
   return {
     status,
     lastSyncedAt,
+    stale,
     pause: () => {
       held.push(client.pause())
     },

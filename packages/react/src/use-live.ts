@@ -5,12 +5,18 @@ import { LiveContext } from './context.js'
 export interface UseLive {
   status: LiveStatus
   lastSyncedAt: Date | null
+  /** True when reloads gave up after repeated failures and the page may be outdated. */
+  stale: boolean
   /** Hold reloads, e.g. while a form is being edited. Signals keep queueing. */
   pause: () => void
   /** Resume reloads, flushing anything queued while paused. */
   resume: () => void
   /** Reload every live prop now. */
   refresh: () => Promise<void>
+}
+
+interface Hold {
+  release: (() => void) | null
 }
 
 const noopSubscribe = () => () => {}
@@ -25,13 +31,25 @@ export function useLive(): UseLive {
   const { client } = context
 
   // Pauses held by this component only: resume() never releases another component's pause,
-  // and they are all released when this component unmounts.
-  const held = useRef<Array<() => void>>([])
+  // and they are all released when this component unmounts. A pause requested before the
+  // provider has created its client (e.g. in a child's mount effect) is applied once it exists.
+  const held = useRef<Hold[]>([])
+  useEffect(() => {
+    if (!client) return
+    for (const hold of held.current) hold.release ??= client.pause()
+
+    return () => {
+      for (const hold of held.current) {
+        hold.release?.()
+        hold.release = null
+      }
+    }
+  }, [client])
   useEffect(
     () => () => {
-      held.current.splice(0).forEach((release) => release())
+      held.current.length = 0
     },
-    [client],
+    [],
   )
 
   const subscribeStatus = useCallback(
@@ -40,6 +58,11 @@ export function useLive(): UseLive {
   )
   const subscribeSynced = useCallback(
     (notify: () => void) => (client ? client.onSynced(notify) : noopSubscribe()),
+    [client],
+  )
+
+  const subscribeStale = useCallback(
+    (notify: () => void) => (client ? client.onStale(notify) : noopSubscribe()),
     [client],
   )
 
@@ -53,16 +76,22 @@ export function useLive(): UseLive {
     () => client?.lastSyncedAt ?? null,
     () => null,
   )
+  const stale = useSyncExternalStore(
+    subscribeStale,
+    () => client?.stale ?? false,
+    () => false,
+  )
 
   return {
     status,
     lastSyncedAt,
+    stale,
     pause: useCallback(() => {
-      if (client) held.current.push(client.pause())
+      held.current.push({ release: client?.pause() ?? null })
     }, [client]),
     resume: useCallback(() => {
-      held.current.pop()?.()
-    }, [client]),
+      held.current.pop()?.release?.()
+    }, []),
     refresh: useCallback(async () => client?.refresh(), [client]),
   }
 }
