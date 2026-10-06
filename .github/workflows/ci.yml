@@ -20,8 +20,11 @@ jobs:
           - { inertia: '^2', react: '^19', node: 22 }
           - { inertia: '^3', react: '^19', node: 22 }
           - { inertia: '^2', react: '^18', node: 22 }
-          # Lowest supported Inertia 2 on the oldest supported Node.
-          - { inertia: '~2.0.0', react: '^18', node: 20 }
+          # Lowest supported Inertia 2 with React 18.
+          - { inertia: '~2.0.0', react: '^18', node: 22 }
+          # Oldest supported Node. The React tests run on jsdom, which needs Node 22+, so
+          # this cell tests the packages that do not (core and Vue).
+          - { inertia: '^2', react: '^19', node: 20, tests: 'core,vue' }
     name: Client / Inertia ${{ matrix.inertia }} / React ${{ matrix.react }} / Node ${{ matrix.node }}
     steps:
       - uses: actions/checkout@v4
@@ -43,4 +46,4 @@ jobs:
       - run: pnpm build
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
+      - run: pnpm --filter "./tests/{${{ matrix.tests || 'core,vue,react' }}}" test
