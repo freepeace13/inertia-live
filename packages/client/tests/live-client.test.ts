@@ -118,6 +118,47 @@ describe('reloading', () => {
     expect(new Set(fake.reloads[0])).toEqual(new Set(['document', 'activity', 'comments']))
   })
 
+  it('reloads only the props a signal lists that the page binds', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('documents.a', ['document', 'comments'])))
+
+    fake.emit('documents.a', 1, ['comments'])
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['comments']])
+  })
+
+  it('skips the reload when the signal only lists props the page does not bind', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1, ['audit'])
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(fake.reloads).toEqual([])
+  })
+
+  it('falls back to every bound prop when the signal lists none', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('documents.a', ['document', 'comments'])))
+
+    fake.emit('documents.a', 1, [])
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document', 'comments']])
+  })
+
+  it('still advances the cursor when the signal is skipped as irrelevant', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 5, ['audit'])
+    fake.emit('documents.a', 4, ['document']) // older than the skipped signal: stale
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(fake.reloads).toEqual([])
+  })
+
   it('drops signals at or below the cursor', async () => {
     const { fake, client } = setup()
     client.sync(page(binding('documents.a', ['document'], 10)))

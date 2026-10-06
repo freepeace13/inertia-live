@@ -78,7 +78,7 @@ The signal carries only topic, version and prop keys; the page's data always com
 3. `DocumentProjector` updates the read model; the `EmitsLiveChanges` hook adds `documents.{uuid}` with the event's id to `ChangeBuffer`.
 4. After the transaction commits, `ChangeFlusher` writes the version to the cursor store and broadcasts one `LiveChangeBroadcast` per topic, excluding the sender's socket.
 5. Reverb delivers it on `private-live.documents.{uuid}` to every authorized subscriber.
-6. `LiveClient` drops it if the version is at or below the page's cursor, otherwise queues the bound props.
+6. `LiveClient` drops it if the version is at or below the page's cursor; otherwise it queues the signal's affected props that the page binds (every bound prop if the signal lists none).
 7. After 150 ms the client calls `router.reload({ only: ['document', 'activity'] })`.
 8. The controller re-renders those props plus fresh cursors; Inertia patches the page without losing scroll or form state.
 
@@ -168,7 +168,7 @@ createInertiaApp({
 
 1. Reads `page.props._live.bindings`.
 2. Diffs against current subscriptions: leaves channels no longer bound, joins new ones.
-3. On a change signal: drops it if `version <= cursor`, otherwise queues its props.
+3. On a change signal: drops it if `version <= cursor`, otherwise queues its affected props that the page binds. A signal touching no bound prop advances the cursor but triggers no reload.
 4. After `debounceMs`, issues one `router.reload({ only: [...unionOfProps], preserveScroll: true, preserveState: true })`.
 5. Updates cursors from the fresh `_live` prop in the reload response.
 

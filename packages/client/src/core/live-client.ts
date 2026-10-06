@@ -149,7 +149,16 @@ export class LiveClient {
     if (!binding || this.destroyed) return
     if (!this.cursors.accept(binding.topic, signal.version)) return
 
-    for (const prop of binding.props) this.pending.add(prop)
+    // Reload only what the signal says changed AND the page binds. A signal without
+    // prop keys means "unknown", so fall back to every bound prop.
+    const affected =
+      signal.props.length > 0
+        ? binding.props.filter((prop) => signal.props.includes(prop))
+        : binding.props
+
+    if (affected.length === 0) return // the page shows nothing this change touched
+
+    for (const prop of affected) this.pending.add(prop)
     this.schedule()
   }
 

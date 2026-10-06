@@ -84,3 +84,28 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+
+  demo:
+    runs-on: ubuntu-latest
+    name: Demo app
+    defaults:
+      run:
+        working-directory: demo
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.4'
+          coverage: none
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Build the client the demo links to
+        working-directory: packages/client
+        run: npm ci && npm run build
+      - run: cp .env.example .env && touch database/database.sqlite
+      - run: composer install --prefer-dist --no-interaction
+      - run: php artisan key:generate
+      - run: npm install
+      - run: npm run build
+      - run: php artisan test
