@@ -2,6 +2,11 @@
 
 Client and repository changes. Server changes are tracked in [freepeace13/inertia-live-laravel](https://github.com/freepeace13/inertia-live-laravel/blob/main/CHANGELOG.md).
 
+## Unreleased
+
+### Fixed
+- Vue: `useLive()` no longer throws during server-side rendering. The inert server client now has `stale` and `onStale()`, and is typed over `LiveClient`'s public members so a new one cannot be missed.
+
 ## 0.1.1 - 2026-10-07
 
 ### Changed

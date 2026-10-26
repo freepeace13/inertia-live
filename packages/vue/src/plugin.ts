@@ -28,11 +28,14 @@ export interface InertiaLiveOptions {
 
 /** Stands in for the client during SSR: always `connecting`, never subscribes or reloads. */
 function serverClient(): LiveClient {
-  const inert = {
+  // Typed over LiveClient's public members, so a new one fails the build until it is stubbed here.
+  const inert: { [K in keyof LiveClient]: LiveClient[K] } = {
     status: 'connecting',
     lastSyncedAt: null,
+    stale: false,
     onStatus: () => () => {},
     onSynced: () => () => {},
+    onStale: () => () => {},
     sync: () => {},
     pause: () => () => {},
     resume: () => {},
@@ -40,7 +43,7 @@ function serverClient(): LiveClient {
     refresh: async () => {},
     destroy: () => {},
   }
-  return inert as unknown as LiveClient
+  return inert as LiveClient
 }
 
 /**

@@ -284,5 +284,10 @@ describe('InertiaLive plugin on the server', () => {
 
     expect(fake.joined.size).toBe(0)
     expect(inertia.router.on).not.toHaveBeenCalled()
+
+    const live = app.runWithContext(() => useLive())
+    expect(live.status.value).toBe('connecting')
+    expect(live.stale.value).toBe(false)
+    expect(live.lastSyncedAt.value).toBeNull()
   })
 })
