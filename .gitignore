@@ -6,7 +6,8 @@ dist/
 .DS_Store
 composer.lock
 
-# Implementation plans (local only)
+# Generated specs and plans (local only)
+/docs/
 
 # Local
 .pnpm-store/

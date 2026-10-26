@@ -75,7 +75,7 @@ fake.emit('documents.a', 1)
 
 ## Documentation
 
-[React](https://github.com/freepeace13/inertia-live-docs/blob/main/react.md), [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/testing.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
+[React](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/react.md), [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/testing.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
 
 ## Development
 

@@ -77,7 +77,7 @@ fake.emit('documents.a', 1)
 
 ## Documentation
 
-[Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/vue.md), [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/testing.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
+[Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/vue.md), [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/testing.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
 
 ## Development
 
