@@ -214,6 +214,19 @@ describe('useLive', () => {
 })
 
 describe('createFakeLive (vue)', () => {
+  it('wires the fake cursors endpoint when the page advertises one', async () => {
+    const { fake } = install()
+
+    page.props = {
+      _live: { bindings: [binding('documents.a', ['document'])], cursors: '/inertia-live/cursors' },
+    }
+    await nextTick()
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.cursorRequests).toEqual([{ url: '/inertia-live/cursors', topics: ['documents.a'] }])
+  })
+
   it('returns plugin options that wire the fake echo and reloader', () => {
     const fake = createFakeLive({ debounceMs: 0 })
 

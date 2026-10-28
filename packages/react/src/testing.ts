@@ -17,6 +17,7 @@ export function createFakeLive(options: { channelPrefix?: string; debounceMs?: n
     providerProps: {
       echo: fake.echo,
       reload: fake.reload,
+      fetchCursors: fake.fetchCursors,
       debounceMs: options.debounceMs,
     } satisfies InertiaLiveProviderProps,
   }

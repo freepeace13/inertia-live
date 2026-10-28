@@ -78,6 +78,20 @@ function mount(fake = createFakeLive(), strict = false) {
 }
 
 describe('InertiaLiveProvider', () => {
+  it('wires the fake cursors endpoint when the page advertises one', async () => {
+    current.props = {
+      _live: { bindings: [binding('documents.a', ['document'])], cursors: '/inertia-live/cursors' },
+    }
+
+    const { fake } = mount()
+    act(() => fake.confirmSubscription('documents.a'))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0)
+    })
+
+    expect(fake.cursorRequests).toEqual([{ url: '/inertia-live/cursors', topics: ['documents.a'] }])
+  })
+
   it('subscribes to the bindings of the current page on mount', () => {
     current.props = pageWith(binding('documents.a', ['document']))
 

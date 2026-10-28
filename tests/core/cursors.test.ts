@@ -1,4 +1,4 @@
-import { CursorStore } from '@freepeace13/inertia-live-core'
+import { CursorStore } from '../../packages/core/src/cursors.js'
 
 describe('CursorStore', () => {
   it('starts at 0', () => {

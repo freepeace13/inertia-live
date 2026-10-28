@@ -72,10 +72,10 @@ Private topics without an authorizer fail closed. → [Authorization](https://gi
 ### 4. Bind the topic to props
 
 ```php
-return Inertia::render('Documents/Show', [
-    'document' => DocumentResource::make($doc),
-    'activity' => fn () => $doc->activity()->latest()->limit(20)->get(),
-])->live("documents.{$doc->uuid}", only: ['document', 'activity']);
+return InertiaLive::render('Documents/Show', [
+    'document' => live("documents.{$doc->uuid}", DocumentResource::make($doc)),
+    'activity' => live("documents.{$doc->uuid}", fn () => $doc->activity()->latest()->limit(20)->get()),
+]);
 ```
 
 → [Page bindings](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/bindings.md)

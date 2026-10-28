@@ -9,13 +9,13 @@ Packages (pnpm workspace, `packages/*`): `@freepeace13/inertia-live-core` (frame
 ```sh
 pnpm install
 pnpm build        # tsc per package
-pnpm test         # vitest, all of tests/*; React tests need Node 22+ (jsdom)
+pnpm test         # vitest, all of tests/*; Node 22+ required
 pnpm typecheck
 pnpm lint         # biome check .
 pnpm format       # biome check --write .
 ```
 
-CI runs a matrix by rewriting the pnpm catalog in `pnpm-workspace.yaml` (Inertia 2/3, React 18/19, Node 20/22). Keep the shared versions in the catalog, not in package.json files.
+CI runs a matrix by rewriting the pnpm catalog in `pnpm-workspace.yaml` (Inertia 2/3, React 18/19, Vue and laravel-echo for the `lowest` cell; Node 22). Keep the shared versions in the catalog, not in package.json files.
 
 ## The release program (read this first for anything about releases or 1.0)
 
@@ -42,7 +42,7 @@ Related repos (siblings): `../inertia-live-laravel` (server adapter), `../inerti
 
 ## Status
 
-The packages are at 0.1.x and the 1.0 scope is not yet defined (D-011). Do not assume which APIs are frozen; check `roadmap.md`.
+The packages are at 0.1.x and the 1.0 scope is decided (D-011), but no API is frozen until the contract phase lists it; check `roadmap.md`.
 
 ## Keeping the tracker in sync
 

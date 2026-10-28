@@ -243,6 +243,336 @@ describe('reloading', () => {
   })
 })
 
+describe('protocol version', () => {
+  it('treats a signal without a protocol field as protocol 1', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1, ['document'])
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('handles a signal that states protocol 1 like any other', async () => {
+    const onError = vi.fn()
+    const fake = createFakeLive()
+    const client = new LiveClient({ echo: fake.echo, reload: fake.reload, onError })
+    client.sync(page(binding('documents.a', ['document', 'comments'])))
+
+    fake.emit('documents.a', 1, ['comments'], 1)
+    fake.emit('documents.a', 1, ['comments'], 1) // stale: dropped as usual
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['comments']])
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('reloads every bound prop for a newer protocol and reports it once per topic', async () => {
+    const onError = vi.fn()
+    const fake = createFakeLive()
+    const client = new LiveClient({ echo: fake.echo, reload: fake.reload, onError })
+    client.sync(
+      page(binding('documents.a', ['document', 'comments']), binding('documents.b', ['folder'])),
+    )
+
+    fake.emit('documents.a', 5, ['comments'], 2)
+    await vi.advanceTimersByTimeAsync(150)
+    fake.emit('documents.a', 6, ['comments'], 2)
+    fake.emit('documents.b', 1, [], 2)
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([
+      ['document', 'comments'],
+      ['document', 'comments', 'folder'],
+    ])
+    expect(onError).toHaveBeenCalledTimes(2) // documents.a once, documents.b once
+    expect(String(onError.mock.calls[0][0])).toContain('documents.a')
+    expect(String(onError.mock.calls[1][0])).toContain('documents.b')
+  })
+
+  it('stays subscribed and ignores the version of a newer-protocol signal', async () => {
+    const { fake, client } = setup()
+    client.sync(page(binding('documents.a', ['document'], 10)))
+
+    fake.emit('documents.a', 1, [], 2) // below the cursor, but its version cannot be trusted
+    await vi.advanceTimersByTimeAsync(150)
+    fake.emit('documents.a', 11, [], 1)
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document'], ['document']])
+    expect([...fake.joined]).toEqual(['live.documents.a'])
+  })
+
+  it('treats a non-numeric protocol field as protocol 1', async () => {
+    const onError = vi.fn()
+    const fake = createFakeLive()
+    const client = new LiveClient({ echo: fake.echo, reload: fake.reload, onError })
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.emit('documents.a', 1, ['document'], Number.NaN)
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document']])
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('reports an unsupported protocol again after the topic was left and rejoined', async () => {
+    const onError = vi.fn()
+    const fake = createFakeLive()
+    const client = new LiveClient({ echo: fake.echo, reload: fake.reload, onError })
+
+    client.sync(page(binding('documents.a', ['document'])))
+    fake.emit('documents.a', 1, [], 2)
+    client.sync(page())
+    client.sync(page(binding('documents.a', ['document'])))
+    fake.emit('documents.a', 2, [], 2)
+
+    expect(onError).toHaveBeenCalledTimes(2)
+  })
+})
+
+describe('cursors endpoint', () => {
+  const CURSORS = '/inertia-live/cursors'
+  const livePage = (...bindings: Binding[]): LiveProp => ({ bindings, cursors: CURSORS })
+
+  function setupCursors() {
+    const fake = createFakeLive()
+    const onError = vi.fn()
+    const client = new LiveClient({
+      echo: fake.echo,
+      reload: fake.reload,
+      fetchCursors: fake.fetchCursors,
+      onError,
+    })
+    fake.setConnectionState('connected')
+    return { fake, client, onError }
+  }
+
+  it('asks the endpoint instead of re-reading _live, and does nothing when the cursor matches', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(livePage(binding('documents.a', ['document'], 7)))
+    fake.setServerCursor('documents.a', 7)
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(500)
+
+    expect(fake.cursorRequests).toEqual([{ url: CURSORS, topics: ['documents.a'] }])
+    expect(fake.reloads).toEqual([])
+  })
+
+  it('reloads the bound props when the server cursor is ahead, and keeps the new cursor', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(livePage(binding('documents.a', ['document', 'comments'], 0)))
+    fake.setServerCursor('documents.a', 5)
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(150)
+    expect(fake.reloads).toEqual([['document', 'comments']])
+
+    fake.emit('documents.a', 5) // the cursor already covers it
+    await vi.advanceTimersByTimeAsync(150)
+    expect(fake.reloads).toHaveLength(1)
+  })
+
+  it('sends one request for every channel confirmed in the same burst', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(livePage(binding('documents.a', ['document']), binding('comments.a', ['comments'])))
+
+    fake.confirmSubscription('documents.a')
+    fake.confirmSubscription('comments.a')
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.cursorRequests).toEqual([{ url: CURSORS, topics: ['documents.a', 'comments.a'] }])
+  })
+
+  it('reloads the props of a topic the server left out, because it cannot be verified', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(livePage(binding('documents.a', ['document']), binding('comments.a', ['comments'])))
+    fake.setServerCursor('documents.a', undefined)
+
+    fake.confirmSubscription('documents.a')
+    fake.confirmSubscription('comments.a')
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document']])
+  })
+
+  it('falls back to re-reading _live when the request fails', async () => {
+    const { fake, client, onError } = setupCursors()
+    client.sync(livePage(binding('documents.a', ['document'])))
+    fake.failCursors()
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['_live']])
+    expect(onError).not.toHaveBeenCalled()
+  })
+
+  it('re-reads _live when the page carries no cursors URL', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(page(binding('documents.a', ['document'])))
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.cursorRequests).toEqual([])
+    expect(fake.reloads).toEqual([['_live']])
+  })
+
+  it('splits more than 50 topics across requests', async () => {
+    const { fake, client } = setupCursors()
+    const topics = Array.from({ length: 51 }, (_, i) => `documents.${i}`)
+    client.sync(livePage(...topics.map((topic) => binding(topic, ['document']))))
+
+    for (const topic of topics) fake.confirmSubscription(topic)
+    await vi.advanceTimersByTimeAsync(0)
+
+    expect(fake.cursorRequests.map((request) => request.topics.length)).toEqual([50, 1])
+  })
+
+  it('does not reload for a signal that arrived while the request was in flight', async () => {
+    const fake = createFakeLive()
+    let answer: (value: Record<string, number>) => void = () => {}
+    const client = new LiveClient({
+      echo: fake.echo,
+      reload: fake.reload,
+      fetchCursors: () => new Promise((resolve) => (answer = resolve)),
+    })
+    fake.setConnectionState('connected')
+    client.sync(livePage(binding('documents.a', ['document'], 0)))
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(0)
+    fake.emit('documents.a', 5, ['document'])
+    await vi.advanceTimersByTimeAsync(150)
+    expect(fake.reloads).toEqual([['document']])
+
+    answer({ 'documents.a': 5 }) // the signal already covered it
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fake.reloads).toHaveLength(1)
+  })
+
+  it('falls back for every channel when one chunk of a large burst fails', async () => {
+    const fake = createFakeLive()
+    let calls = 0
+    const client = new LiveClient({
+      echo: fake.echo,
+      reload: fake.reload,
+      fetchCursors: async (_url, topics) => {
+        calls += 1
+        if (calls === 2) throw new Error('boom')
+        return Object.fromEntries(topics.map((topic) => [topic, 0]))
+      },
+    })
+    fake.setConnectionState('connected')
+    const topics = Array.from({ length: 51 }, (_, i) => `documents.${i}`)
+    client.sync(livePage(...topics.map((topic) => binding(topic, ['document']))))
+
+    for (const topic of topics) fake.confirmSubscription(topic)
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(calls).toBe(2)
+    expect(fake.reloads).toEqual([['_live']])
+  })
+
+  it('reloads only the bindings that are ahead or unverifiable in a mixed answer', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(
+      livePage(
+        binding('documents.a', ['document'], 3),
+        binding('comments.a', ['comments'], 3),
+        binding('folders.a', ['folder'], 3),
+      ),
+    )
+    fake.setServerCursor('documents.a', 3) // in step
+    fake.setServerCursor('comments.a', 4) // ahead
+    fake.setServerCursor('folders.a', undefined) // left out
+
+    for (const topic of ['documents.a', 'comments.a', 'folders.a']) fake.confirmSubscription(topic)
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toHaveLength(1)
+    expect(new Set(fake.reloads[0])).toEqual(new Set(['comments', 'folder']))
+  })
+
+  it('ignores the answer for a channel that was left or a client that was destroyed', async () => {
+    const { fake, client } = setupCursors()
+    client.sync(livePage(binding('documents.a', ['document'])))
+    fake.setServerCursor('documents.a', 9)
+
+    fake.confirmSubscription('documents.a')
+    client.sync(livePage()) // left the page before the answer
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fake.reloads).toEqual([])
+
+    client.sync(livePage(binding('documents.b', ['document'])))
+    fake.setServerCursor('documents.b', 9)
+    fake.confirmSubscription('documents.b')
+    client.destroy()
+    await vi.advanceTimersByTimeAsync(500)
+    expect(fake.reloads).toEqual([])
+  })
+})
+
+describe('default cursors request', () => {
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function setupFetch(respond: () => Promise<Partial<Response>>) {
+    const request = vi.fn(respond)
+    vi.stubGlobal('fetch', request)
+    const fake = createFakeLive()
+    const client = new LiveClient({ echo: fake.echo, reload: fake.reload })
+    fake.setConnectionState('connected')
+    return { fake, client, request }
+  }
+
+  const livePage = (...bindings: Binding[]): LiveProp => ({
+    bindings,
+    cursors: '/inertia-live/cursors',
+  })
+
+  it('sends a same-origin GET with the topics encoded', async () => {
+    const { fake, client, request } = setupFetch(async () => ({
+      ok: true,
+      json: async () => ({ cursors: { 'documents.a b&c': 0 } }),
+    }))
+    client.sync(livePage(binding('documents.a b&c', ['document'])))
+
+    fake.confirmSubscription('documents.a b&c')
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(request).toHaveBeenCalledWith(
+      '/inertia-live/cursors?topics[]=documents.a%20b%26c',
+      expect.objectContaining({ credentials: 'same-origin' }),
+    )
+    expect(fake.reloads).toEqual([])
+  })
+
+  it('falls back to re-reading _live when the response is not ok', async () => {
+    const { fake, client } = setupFetch(async () => ({ ok: false, status: 429 }))
+    client.sync(livePage(binding('documents.a', ['document'])))
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['_live']])
+  })
+
+  it('treats a body without cursors as nothing verifiable and reloads the bound props', async () => {
+    const { fake, client } = setupFetch(async () => ({ ok: true, json: async () => ({}) }))
+    client.sync(livePage(binding('documents.a', ['document'])))
+
+    fake.confirmSubscription('documents.a')
+    await vi.advanceTimersByTimeAsync(150)
+
+    expect(fake.reloads).toEqual([['document']])
+  })
+})
+
 describe('pause, resume and refresh', () => {
   it('holds reloads while paused and flushes on resume', async () => {
     const { fake, client } = setup()

@@ -30,7 +30,7 @@ Install with `npm install @freepeace13/inertia-live-vue laravel-echo`. Requires 
 
 ## Pages
 
-A page needs nothing extra: if its controller returns `->live("documents.{$doc->uuid}", only: ['document', 'activity'])`, the plugin subscribes and reloads exactly those props when the topic changes. Policies and per-user fields keep working because the reload goes through the same controller.
+A page needs nothing extra: if its controller marks props with `live("documents.{$doc->uuid}", ...)` and returns `InertiaLive::render(...)` (or chains `->live("documents.{$doc->uuid}", only: ['document', 'activity'])`), the plugin subscribes and reloads exactly those props when the topic changes. Policies and per-user fields keep working because the reload goes through the same controller.
 
 ## Status and manual control
 

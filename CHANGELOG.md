@@ -4,6 +4,16 @@ Client and repository changes. Server changes are tracked in [freepeace13/inerti
 
 ## Unreleased
 
+### Added
+- When a channel's subscription is confirmed, the client asks the server's cursors endpoint (`_live.cursors`) for current cursors in one batched request instead of re-reading `_live`, and falls back to the old re-read when the page has no `cursors` URL or the request fails. New `fetchCursors` option on `LiveClient`, the Vue plugin and the React provider; `createFakeLive()` gains `fetchCursors`, `cursorRequests`, `setServerCursor()` and `failCursors()`. Needs the matching server change in the Laravel changelog.
+- Signals may carry `protocol` (the wire protocol version; `ChangeSignal.protocol` is optional). A signal without it is protocol 1. For a protocol newer than the client supports, the client reloads every prop bound to that topic and calls `onError` once per topic. `createFakeLive().emit()` takes an optional fourth `protocol` argument. The matching server change is in the Laravel changelog.
+
+### Changed
+- Node 22 or later is required (`engines.node` is `>=22`). Node 20 is end of life; the Node 20 CI cell is gone and CI gains a `lowest` cell (Inertia 2.0, React 18, Vue 3.4.0, `laravel-echo` 2.0.0).
+- `LiveStatus`, `EchoLike`, `Reloader` and `ReloadCancelled` are also exported from the Vue and React packages.
+- (breaking, pre-1.0) `ConnectionTracker` and `CursorStore` are no longer exported from `@freepeace13/inertia-live-core`; they are internal.
+- (experimental) `createInertiaReloader`, `ReloadRouter`, `inertiaReloader`, `SOCKET_ID_HEADER`, `withSocketId`, `EchoChannelLike`, `ConnectionLike` and `LiveClient.resetPause()` are tagged `@experimental` and may change in a 1.x minor. See the stable API list in the docs repo.
+
 ### Fixed
 - Vue: `useLive()` no longer throws during server-side rendering. The inert server client now has `stale` and `onStale()`, and is typed over `LiveClient`'s public members so a new one cannot be missed.
 

@@ -2,6 +2,15 @@
   "name": "@freepeace13/inertia-live-react",
   "version": "0.1.1",
   "description": "React adapter for Inertia Live: InertiaLiveProvider and useLive().",
+  "keywords": [
+    "inertia",
+    "inertiajs",
+    "react",
+    "laravel",
+    "realtime",
+    "live-updates",
+    "laravel-echo"
+  ],
   "license": "MIT",
   "type": "module",
   "files": [
@@ -48,13 +57,13 @@
     "@inertiajs/react": "catalog:",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "laravel-echo": "^2.0.0",
+    "laravel-echo": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:"
   },
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "peerDependenciesMeta": {
     "laravel-echo": {

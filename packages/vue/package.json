@@ -2,6 +2,15 @@
   "name": "@freepeace13/inertia-live-vue",
   "version": "0.1.1",
   "description": "Vue 3 adapter for Inertia Live: plugin and useLive().",
+  "keywords": [
+    "inertia",
+    "inertiajs",
+    "vue",
+    "laravel",
+    "realtime",
+    "live-updates",
+    "laravel-echo"
+  ],
   "license": "MIT",
   "type": "module",
   "files": [
@@ -46,12 +55,12 @@
   },
   "devDependencies": {
     "@inertiajs/vue3": "catalog:",
-    "laravel-echo": "^2.0.0",
-    "vue": "^3.4.0"
+    "laravel-echo": "catalog:",
+    "vue": "catalog:"
   },
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "peerDependenciesMeta": {
     "laravel-echo": {

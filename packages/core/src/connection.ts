@@ -20,6 +20,7 @@ function mapState(state: string, hasBeenLive: boolean): LiveStatus | null {
   }
 }
 
+/** @internal Maps Pusher connection states to `LiveStatus`. */
 export class ConnectionTracker {
   private current: LiveStatus
   private hasBeenLive = false

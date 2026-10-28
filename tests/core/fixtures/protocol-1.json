@@ -1,0 +1,96 @@
+{
+  "protocol": 1,
+  "signals": [
+    {
+      "name": "signal with props",
+      "change": {
+        "topic": "documents.9f1c2e",
+        "props": ["document", "activity"],
+        "version": 1789234567123456
+      },
+      "payload": {
+        "topic": "documents.9f1c2e",
+        "version": 1789234567123456,
+        "props": ["document", "activity"],
+        "protocol": 1
+      }
+    },
+    {
+      "name": "signal with unknown props",
+      "change": { "topic": "documents.9f1c2e", "props": [], "version": 1789234567123457 },
+      "payload": {
+        "topic": "documents.9f1c2e",
+        "version": 1789234567123457,
+        "props": [],
+        "protocol": 1
+      }
+    }
+  ],
+  "live": {
+    "route": "/docs/9f1c2e",
+    "topic": "documents.9f1c2e",
+    "props": ["document", "activity"],
+    "cursor": 1789234567123456,
+    "payload": {
+      "bindings": [
+        {
+          "topic": "documents.9f1c2e",
+          "channel": "live.documents.9f1c2e",
+          "props": ["document", "activity"],
+          "cursor": 1789234567123456,
+          "public": false
+        }
+      ],
+      "cursors": "/inertia-live/cursors"
+    }
+  },
+  "cursorsResponse": {
+    "request": { "path": "/inertia-live/cursors", "topics": ["documents.9f1c2e", "stats.7"] },
+    "cursors": { "documents.9f1c2e": 1789234567123456, "stats.7": 0 }
+  },
+  "clientCases": [
+    {
+      "name": "reloads the props named in the signal",
+      "bindings": [{ "topic": "documents.a", "props": ["document", "activity"], "cursor": 5 }],
+      "signals": [{ "topic": "documents.a", "version": 6, "props": ["activity"], "protocol": 1 }],
+      "reloads": [["activity"]]
+    },
+    {
+      "name": "empty props means every bound prop",
+      "bindings": [{ "topic": "documents.a", "props": ["document", "activity"], "cursor": 5 }],
+      "signals": [{ "topic": "documents.a", "version": 6, "props": [], "protocol": 1 }],
+      "reloads": [["document", "activity"]]
+    },
+    {
+      "name": "a signal without protocol is protocol 1",
+      "bindings": [{ "topic": "documents.a", "props": ["document"], "cursor": 5 }],
+      "signals": [{ "topic": "documents.a", "version": 6, "props": ["document"] }],
+      "reloads": [["document"]]
+    },
+    {
+      "name": "drops a version at or below the cursor",
+      "bindings": [{ "topic": "documents.a", "props": ["document"], "cursor": 5 }],
+      "signals": [
+        { "topic": "documents.a", "version": 5, "props": ["document"], "protocol": 1 },
+        { "topic": "documents.a", "version": 4, "props": ["document"], "protocol": 1 }
+      ],
+      "reloads": []
+    },
+    {
+      "name": "ignores props the binding does not own",
+      "bindings": [{ "topic": "documents.a", "props": ["document"], "cursor": 5 }],
+      "signals": [{ "topic": "documents.a", "version": 6, "props": ["other"], "protocol": 1 }],
+      "reloads": []
+    },
+    {
+      "name": "a newer protocol reloads every bound prop and reports once",
+      "bindings": [{ "topic": "documents.a", "props": ["document", "activity"], "cursor": 5 }],
+      "signals": [
+        { "topic": "documents.a", "version": 6, "props": ["activity"], "protocol": 2 },
+        { "topic": "documents.a", "version": 7, "props": ["activity"], "protocol": 2 }
+      ],
+      "reloads": [["document", "activity"]],
+      "errors": 1
+    }
+  ]
+}

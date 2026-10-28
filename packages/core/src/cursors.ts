@@ -1,4 +1,4 @@
-/** Last version seen per topic. Signals at or below the cursor are stale. */
+/** @internal Last version seen per topic. Signals at or below the cursor are stale. */
 export class CursorStore {
   private cursors = new Map<string, number>()
 

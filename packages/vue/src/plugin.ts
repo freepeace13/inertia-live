@@ -1,6 +1,7 @@
 import {
   type ConnectionLike,
   type EchoLike,
+  type FetchCursors,
   LiveClient,
   type LiveProp,
   type Reloader,
@@ -22,6 +23,8 @@ export interface InertiaLiveOptions {
   maxWaitMs?: number
   /** Replace the default `router.reload` based reloader (mainly for tests). */
   reload?: Reloader
+  /** Replace the `fetch` based request to the server's cursors endpoint (mainly for tests). */
+  fetchCursors?: FetchCursors
   /** Called when a live reload fails. */
   onError?: (error: unknown) => void
 }
@@ -64,6 +67,7 @@ export const InertiaLive: Plugin<[InertiaLiveOptions]> = {
       debounceMs: options.debounceMs,
       maxWaitMs: options.maxWaitMs,
       connection: options.connection,
+      fetchCursors: options.fetchCursors,
       onError: options.onError,
     })
 

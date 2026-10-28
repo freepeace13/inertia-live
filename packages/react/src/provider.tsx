@@ -1,6 +1,7 @@
 import {
   type ConnectionLike,
   type EchoLike,
+  type FetchCursors,
   LiveClient,
   type LiveProp,
   type Reloader,
@@ -22,6 +23,8 @@ export interface InertiaLiveProviderProps {
   maxWaitMs?: number
   /** Replace the default `router.reload` based reloader (mainly for tests). */
   reload?: Reloader
+  /** Replace the `fetch` based request to the server's cursors endpoint (mainly for tests). */
+  fetchCursors?: FetchCursors
   /** Called when a live reload fails. */
   onError?: (error: unknown) => void
   children?: ReactNode
@@ -37,14 +40,15 @@ export function InertiaLiveProvider({
   maxWaitMs,
   connection,
   reload,
+  fetchCursors,
   onError,
   children,
 }: InertiaLiveProviderProps) {
   const [client, setClient] = useState<LiveClient | null>(null)
 
   // Callbacks change identity every render; keep the latest without recreating the client.
-  const latest = useRef({ reload, onError })
-  latest.current = { reload, onError }
+  const latest = useRef({ reload, onError, fetchCursors })
+  latest.current = { reload, onError, fetchCursors }
 
   // Create the client in an effect, so React StrictMode's mount/unmount/mount cycle
   // destroys and recreates it cleanly instead of leaking subscriptions.
@@ -54,6 +58,9 @@ export function InertiaLiveProvider({
       debounceMs,
       maxWaitMs,
       connection,
+      fetchCursors:
+        latest.current.fetchCursors &&
+        ((url, topics) => (latest.current.fetchCursors as FetchCursors)(url, topics)),
       reload: (only) => (latest.current.reload ?? inertiaReloader)(only),
       onError: (error) => latest.current.onError?.(error),
     })
