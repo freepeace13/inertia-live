@@ -22,7 +22,7 @@ The socket only carries a tiny "topic changed" signal (`{ topic, version, props 
 | [`@freepeace13/inertia-live-vue`](packages/vue/README.md) | `npm install @freepeace13/inertia-live-vue` | Vue 3 plugin and `useLive()` |
 | [`@freepeace13/inertia-live-react`](packages/react/README.md) | `npm install @freepeace13/inertia-live-react` | React provider and `useLive()` |
 
-**Requirements:** PHP 8.3+, Laravel 12/13, Inertia 2/3, `spatie/laravel-event-sourcing` ^7.14, an Echo-compatible broadcaster (Reverb, Pusher, Ably) and Vue 3.4+ or React 18/19. See [Installation](https://github.com/freepeace13/inertia-live-docs/blob/main/installation.md).
+**Requirements:** PHP 8.3+, Laravel 12/13, Inertia 2/3, `spatie/laravel-event-sourcing` ^7.14, an Echo-compatible broadcaster (Reverb, Pusher, Ably) and Vue 3.4+ or React 18/19. See [Installation](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/installation.md).
 
 ## Quick start
 
@@ -41,7 +41,7 @@ final class DocumentRenamed extends ShouldBeStored
 }
 ```
 
-Placeholders come from the event's properties, and the attribute is repeatable. → [Topics](https://github.com/freepeace13/inertia-live-docs/blob/main/topics.md)
+Placeholders come from the event's properties, and the attribute is repeatable. → [Topics](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/topics.md)
 
 ### 2. Mark changes in projectors
 
@@ -57,7 +57,7 @@ final class DocumentProjector extends Projector
 }
 ```
 
-Signals go out after the handler returns and the transaction commits. For events without the attribute, call `$this->liveChanged(...)`. → [Projectors](https://github.com/freepeace13/inertia-live-docs/blob/main/projectors.md)
+Signals go out after the handler returns and the transaction commits. For events without the attribute, call `$this->liveChanged(...)`. → [Projectors](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/projectors.md)
 
 ### 3. Authorize the topic
 
@@ -67,18 +67,18 @@ Live::authorize('documents.{uuid}', fn (User $user, string $uuid) =>
 );
 ```
 
-Private topics without an authorizer fail closed. → [Authorization](https://github.com/freepeace13/inertia-live-docs/blob/main/authorization.md)
+Private topics without an authorizer fail closed. → [Authorization](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/authorization.md)
 
 ### 4. Bind the topic to props
 
 ```php
-return Inertia::render('Documents/Show', [
-    'document' => DocumentResource::make($doc),
-    'activity' => fn () => $doc->activity()->latest()->limit(20)->get(),
-])->live("documents.{$doc->uuid}", only: ['document', 'activity']);
+return InertiaLive::render('Documents/Show', [
+    'document' => live("documents.{$doc->uuid}", DocumentResource::make($doc)),
+    'activity' => live("documents.{$doc->uuid}", fn () => $doc->activity()->latest()->limit(20)->get()),
+]);
 ```
 
-→ [Page bindings](https://github.com/freepeace13/inertia-live-docs/blob/main/bindings.md)
+→ [Page bindings](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/bindings.md)
 
 ### 5. Install the client
 
@@ -103,7 +103,7 @@ export default function AppLayout({ children }) {
 }
 ```
 
-Both expose `useLive()` for `{ status, lastSyncedAt, stale, pause, resume, refresh }`. Call `pause()` while a user edits a form. → [Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/vue.md), [React](https://github.com/freepeace13/inertia-live-docs/blob/main/react.md), [Client core](https://github.com/freepeace13/inertia-live-docs/blob/main/client-core.md)
+Both expose `useLive()` for `{ status, lastSyncedAt, stale, pause, resume, refresh }`. Call `pause()` while a user edits a form. → [Vue 3](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/vue.md), [React](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/react.md), [Client core](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/client-core.md)
 
 Want to see it running first? Clone the [demo app](https://github.com/freepeace13/inertia-live-demo).
 
@@ -122,7 +122,7 @@ Want to see it running first? Clone the [demo app](https://github.com/freepeace1
 | Rate limit | Over the cap (`max_signals_per_second`, default 10) signals collapse into one trailing signal |
 | Rolled-back transaction | Its changes are discarded, nothing is broadcast |
 
-The cursor store needs atomic `increment` (Redis, database, Memcached). For the full model, limits and costs, see [Consistency](https://github.com/freepeace13/inertia-live-docs/blob/main/consistency.md) and [Design decisions](https://github.com/freepeace13/inertia-live-docs/blob/main/design-decisions.md).
+The cursor store needs atomic `increment` (Redis, database, Memcached). For the full model, limits and costs, see [Consistency](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/consistency.md) and [Design decisions](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/design-decisions.md).
 
 ## Testing
 
@@ -135,7 +135,7 @@ Live::assertChanged("documents.{$doc->uuid}", props: ['document']);
 Live::assertChangedTimes("documents.{$doc->uuid}", 1);
 ```
 
-Client tests use `createFakeLive()` from `@freepeace13/inertia-live-vue/testing` or `/react/testing`. → [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/testing.md)
+Client tests use `createFakeLive()` from `@freepeace13/inertia-live-vue/testing` or `/react/testing`. → [Testing](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/testing.md)
 
 ## Documentation
 
@@ -143,10 +143,10 @@ The full docs live in [`inertia-live-docs`](https://github.com/freepeace13/inert
 
 | Doc | Covers |
 | --- | --- |
-| [Installation](https://github.com/freepeace13/inertia-live-docs/blob/main/installation.md) | Requirements, packages, broadcasting and Echo setup |
-| [Configuration](https://github.com/freepeace13/inertia-live-docs/blob/main/configuration.md) | Every `config/inertia-live.php` key |
-| [Troubleshooting](https://github.com/freepeace13/inertia-live-docs/blob/main/troubleshooting.md) | Symptoms, causes, fixes |
-| [Spec](https://github.com/freepeace13/inertia-live-docs/blob/main/SPEC.md) | Original design, goals and milestones |
+| [Installation](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/installation.md) | Requirements, packages, broadcasting and Echo setup |
+| [Configuration](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/configuration.md) | Every `config/inertia-live.php` key |
+| [Troubleshooting](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/troubleshooting.md) | Symptoms, causes, fixes |
+| [Spec](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/SPEC.md) | Original design, goals and milestones |
 
 ## Development
 

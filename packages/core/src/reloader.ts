@@ -1,6 +1,10 @@
 import { ReloadCancelled, type Reloader } from './types.js'
 
-/** The slice of Inertia's `router` that the live reloader uses. */
+/**
+ * The slice of Inertia's `router` that the live reloader uses.
+ *
+ * @experimental
+ */
 export interface ReloadRouter {
   reload(options: {
     only: string[]
@@ -14,6 +18,8 @@ export interface ReloadRouter {
  * Partial reload that resolves when the visit finishes, rejects if it reports errors, and
  * rejects with `ReloadCancelled` if another visit cancels it. `router.reload` already preserves
  * scroll position and component state, so a live update never disturbs the user.
+ *
+ * @experimental
  */
 export const createInertiaReloader =
   (router: ReloadRouter): Reloader =>

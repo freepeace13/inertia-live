@@ -1,10 +1,12 @@
 import { ConnectionTracker } from './connection.js'
 import { CursorStore } from './cursors.js'
+import { fetchCursorsWithFetch, MAX_CURSOR_TOPICS } from './cursors-endpoint.js'
 import type {
   Binding,
   ChangeSignal,
   ConnectionLike,
   EchoLike,
+  FetchCursors,
   LiveProp,
   LiveStatus,
   Reloader,
@@ -23,11 +25,21 @@ export interface LiveClientOptions {
    * Without it a signal every few hundred ms would restart the debounce forever.
    */
   maxWaitMs?: number
-  /** Called each time a reload rejects. The props are re-queued and retried with backoff. */
+  /**
+   * Asks the server's cursors endpoint for current cursors when a channel's subscription is
+   * confirmed. Default: a same-origin `fetch`. Used only when the page's `_live` carries `cursors`;
+   * if that is missing or the request fails, the client re-reads `_live` instead.
+   */
+  fetchCursors?: FetchCursors
+  /**
+   * Called each time a reload rejects (the props are re-queued and retried with backoff), and
+   * once per topic when a signal uses a newer protocol than this client supports.
+   */
   onError?: (error: unknown) => void
 }
 
 const SIGNAL_EVENT = '.live.changed'
+const SUPPORTED_PROTOCOL = 1
 const RETRY_BASE_MS = 1000
 const RETRY_MAX_MS = 30_000
 const MAX_RETRIES = 5
@@ -38,10 +50,17 @@ export class LiveClient {
   private readonly debounceMs: number
   private readonly maxWaitMs: number
   private readonly onError?: (error: unknown) => void
+  private readonly fetchCursors?: FetchCursors
+  private cursorsUrl: string | null = null
+  /** Channels whose subscription was confirmed and whose cursor is not yet checked. */
+  private readonly checks = new Set<string>()
+  private checkScheduled = false
 
   private readonly cursors = new CursorStore()
   private readonly tracker: ConnectionTracker
   private readonly bindings = new Map<string, Binding>() // by channel
+  /** Topics already reported through `onError` for a signal with an unsupported protocol. */
+  private readonly unsupported = new Set<string>()
   private readonly pending = new Set<string>()
   /**
    * Channels subscribed since their last `_live` refresh: a cursor jump there means a missed
@@ -70,6 +89,8 @@ export class LiveClient {
     this.debounceMs = options.debounceMs ?? 150
     this.maxWaitMs = options.maxWaitMs ?? this.debounceMs * 4
     this.onError = options.onError
+    this.fetchCursors =
+      options.fetchCursors ?? (typeof fetch === 'function' ? fetchCursorsWithFetch : undefined)
 
     this.tracker = new ConnectionTracker(options.echo, options.connection)
     this.unsubscribeTracker = this.tracker.onChange((status, previous) => {
@@ -113,14 +134,17 @@ export class LiveClient {
   sync(liveProp: LiveProp | undefined | null): void {
     if (this.destroyed) return
 
+    this.cursorsUrl = liveProp?.cursors ?? null
     const next = new Map((liveProp?.bindings ?? []).map((binding) => [binding.channel, binding]))
 
     for (const [channel, binding] of this.bindings) {
       if (!next.has(channel)) {
         this.echo.leave(channel)
         this.cursors.forget(binding.topic)
+        this.unsupported.delete(binding.topic)
         this.bindings.delete(channel)
         this.verifying.delete(channel)
+        this.checks.delete(channel)
       }
     }
 
@@ -171,7 +195,11 @@ export class LiveClient {
     if (latest) this.release(latest)
   }
 
-  /** Drop every pause, e.g. on navigation: whatever paused the old page is gone. */
+  /**
+   * Drop every pause, e.g. on navigation: whatever paused the old page is gone.
+   *
+   * @experimental Plumbing for adapters.
+   */
   resetPause(): void {
     this.holds.clear()
     if (this.pending.size > 0) this.schedule()
@@ -227,6 +255,24 @@ export class LiveClient {
   private receive(channel: string, signal: ChangeSignal): void {
     const binding = this.bindings.get(channel)
     if (!binding || this.destroyed) return
+
+    // A missing field means protocol 1. A newer protocol may change what `version` and `props`
+    // mean, so skip both: reload everything the topic binds, and say so once per topic.
+    const protocol = Number.isFinite(signal.protocol) ? (signal.protocol as number) : 1
+    if (protocol > SUPPORTED_PROTOCOL) {
+      for (const prop of binding.props) this.pending.add(prop)
+      this.schedule()
+      if (!this.unsupported.has(binding.topic)) {
+        this.unsupported.add(binding.topic)
+        this.onError?.(
+          new Error(
+            `Signal for "${binding.topic}" uses protocol ${protocol}; this client supports protocol ${SUPPORTED_PROTOCOL}. Update @freepeace13/inertia-live-*.`,
+          ),
+        )
+      }
+      return
+    }
+
     if (!this.cursors.accept(binding.topic, signal.version)) return
 
     // Reload only what the signal says changed AND the page binds. A signal without
@@ -241,9 +287,79 @@ export class LiveClient {
     this.schedule()
   }
 
-  /** The channel just subscribed: re-read `_live` so `sync()` can spot a missed signal. */
+  /** The channel just subscribed: look for a signal that slipped in between render and subscribe. */
   private verify(channel: string): void {
     if (this.destroyed || !this.bindings.has(channel)) return
+
+    if (this.cursorsUrl && this.fetchCursors) {
+      // One request covers every channel confirmed in the same burst.
+      this.checks.add(channel)
+      if (!this.checkScheduled) {
+        this.checkScheduled = true
+        void Promise.resolve().then(() => this.checkCursors())
+      }
+      return
+    }
+
+    this.rereadLive(channel)
+  }
+
+  /**
+   * Compare the server's current cursors with ours. A cursor ahead of ours means a signal slipped
+   * through, so that binding's props reload. A topic the server left out cannot be verified, so
+   * its props reload too. If the request fails, fall back to re-reading `_live`.
+   */
+  private async checkCursors(): Promise<void> {
+    this.checkScheduled = false
+    const url = this.cursorsUrl
+    const fetchCursors = this.fetchCursors
+    const channels = [...this.checks].filter((channel) => this.bindings.has(channel))
+    this.checks.clear()
+    if (this.destroyed || channels.length === 0) return
+
+    if (!url || !fetchCursors) {
+      for (const channel of channels) this.rereadLive(channel)
+      return
+    }
+
+    const topics = channels.map((channel) => (this.bindings.get(channel) as Binding).topic)
+    const chunks: string[][] = []
+    for (let i = 0; i < topics.length; i += MAX_CURSOR_TOPICS) {
+      chunks.push(topics.slice(i, i + MAX_CURSOR_TOPICS))
+    }
+
+    let server: Record<string, number>
+    try {
+      server = Object.assign(
+        {},
+        ...(await Promise.all(chunks.map((chunk) => fetchCursors(url, chunk)))),
+      )
+    } catch {
+      if (this.destroyed) return
+      for (const channel of channels) if (this.bindings.has(channel)) this.rereadLive(channel)
+      return
+    }
+    if (this.destroyed) return
+
+    for (const channel of channels) {
+      const binding = this.bindings.get(channel)
+      if (!binding) continue // left the page while the request was in flight
+
+      const cursor = server[binding.topic]
+      if (
+        cursor !== undefined &&
+        !(Number.isFinite(cursor) && cursor > this.cursors.get(binding.topic))
+      ) {
+        continue // nothing slipped through
+      }
+      if (cursor !== undefined) this.cursors.raise(binding.topic, cursor)
+      for (const prop of binding.props) this.pending.add(prop)
+    }
+    this.schedule()
+  }
+
+  /** Re-read `_live` alone so `sync()` can spot a missed signal. */
+  private rereadLive(channel: string): void {
     this.verifying.set(channel, this.runSeq)
     // One debounced `_live` read covers every channel confirmed in the same burst, and
     // runs after any in-flight reload, whose response may predate this ack.

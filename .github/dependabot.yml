@@ -1,0 +1,15 @@
+version: 2
+updates:
+  # Dependabot reads the pnpm catalog in pnpm-workspace.yaml. The CI matrix rewrites the catalog
+  # on the runner only, so the committed ranges stay the supported ones.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      dev-tooling:
+        dependency-type: development
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly

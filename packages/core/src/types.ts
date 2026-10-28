@@ -9,13 +9,23 @@ export interface Binding {
 
 export interface LiveProp {
   bindings: Binding[]
+  /** URL of the server's cursors endpoint. Absent on servers that do not have one. */
+  cursors?: string
 }
+
+/**
+ * Asks the cursors endpoint for the current cursor of each topic. Resolves to a map that omits
+ * topics the caller may not subscribe to. Rejects if the request fails.
+ */
+export type FetchCursors = (url: string, topics: string[]) => Promise<Record<string, number>>
 
 /** The broadcast payload: never contains model data. */
 export interface ChangeSignal {
   topic: string
   version: number
   props: string[]
+  /** Wire protocol version. Absent on 0.1.x servers, which means protocol 1. */
+  protocol?: number
 }
 
 export type LiveStatus = 'connecting' | 'live' | 'reconnecting' | 'offline'
@@ -23,6 +33,7 @@ export type LiveStatus = 'connecting' | 'live' | 'reconnecting' | 'offline'
 /** Reloads the given props, e.g. `router.reload({ only })`. Resolves when the reload finished. */
 export type Reloader = (only: string[]) => Promise<void>
 
+/** @experimental */
 export interface EchoChannelLike {
   listen(event: string, callback: (payload: ChangeSignal) => void): EchoChannelLike
   /** Fires once the server confirms the subscription. Optional: not every driver has it. */
@@ -39,7 +50,11 @@ export interface EchoLike {
   connector?: { pusher?: { connection?: ConnectionLike } }
 }
 
-/** Pusher-protocol connection (Reverb, Pusher). Other drivers can supply their own. */
+/**
+ * Pusher-protocol connection (Reverb, Pusher). Other drivers can supply their own.
+ *
+ * @experimental
+ */
 export interface ConnectionLike {
   state?: string
   bind(event: string, callback: (payload: { current: string }) => void): unknown

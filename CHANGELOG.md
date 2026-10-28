@@ -2,6 +2,21 @@
 
 Client and repository changes. Server changes are tracked in [freepeace13/inertia-live-laravel](https://github.com/freepeace13/inertia-live-laravel/blob/main/CHANGELOG.md).
 
+## Unreleased
+
+### Added
+- When a channel's subscription is confirmed, the client asks the server's cursors endpoint (`_live.cursors`) for current cursors in one batched request instead of re-reading `_live`, and falls back to the old re-read when the page has no `cursors` URL or the request fails. New `fetchCursors` option on `LiveClient`, the Vue plugin and the React provider; `createFakeLive()` gains `fetchCursors`, `cursorRequests`, `setServerCursor()` and `failCursors()`. Needs the matching server change in the Laravel changelog.
+- Signals may carry `protocol` (the wire protocol version; `ChangeSignal.protocol` is optional). A signal without it is protocol 1. For a protocol newer than the client supports, the client reloads every prop bound to that topic and calls `onError` once per topic. `createFakeLive().emit()` takes an optional fourth `protocol` argument. The matching server change is in the Laravel changelog.
+
+### Changed
+- Node 22 or later is required (`engines.node` is `>=22`). Node 20 is end of life; the Node 20 CI cell is gone and CI gains a `lowest` cell (Inertia 2.0, React 18, Vue 3.4.0, `laravel-echo` 2.0.0).
+- `LiveStatus`, `EchoLike`, `Reloader` and `ReloadCancelled` are also exported from the Vue and React packages.
+- (breaking, pre-1.0) `ConnectionTracker` and `CursorStore` are no longer exported from `@freepeace13/inertia-live-core`; they are internal.
+- (experimental) `createInertiaReloader`, `ReloadRouter`, `inertiaReloader`, `SOCKET_ID_HEADER`, `withSocketId`, `EchoChannelLike`, `ConnectionLike` and `LiveClient.resetPause()` are tagged `@experimental` and may change in a 1.x minor. See the stable API list in the docs repo.
+
+### Fixed
+- Vue: `useLive()` no longer throws during server-side rendering. The inert server client now has `stale` and `onStale()`, and is typed over `LiveClient`'s public members so a new one cannot be missed.
+
 ## 0.1.1 - 2026-10-07
 
 ### Changed
@@ -17,7 +32,7 @@ Client and repository changes. Server changes are tracked in [freepeace13/inerti
 - The single npm package `@freepeace13/inertia-live` is split into `@freepeace13/inertia-live-core`, `@freepeace13/inertia-live-vue` and `@freepeace13/inertia-live-react` (npm workspaces under `packages/`). Imports change from `@freepeace13/inertia-live/vue` to `@freepeace13/inertia-live-vue`, `/vue/testing` to `-vue/testing`, and the root and `/testing` entries move to `-core`.
 - The Laravel adapter moves to its own repository, `freepeace13/inertia-live-laravel`, and the Composer package is renamed from `freepeace13/inertia-live-projections`.
 
-- Signal versions are a per-topic sequence taken at flush time, not the stored event id ([Design decisions](https://github.com/freepeace13/inertia-live-docs/blob/main/design-decisions.md)). Fixes signals being dropped when several projectors, or concurrent queue workers, handle one topic. `CursorRepository::put()` becomes `next()`; `Change` no longer carries a version; `LiveChangeBroadcast` takes it as its second argument. The cursor store must support atomic `increment`; versions are opaque clock-seeded numbers (~1.8e15). The `force` flag on replay signals is removed as redundant.
+- Signal versions are a per-topic sequence taken at flush time, not the stored event id ([Design decisions](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/design-decisions.md)). Fixes signals being dropped when several projectors, or concurrent queue workers, handle one topic. `CursorRepository::put()` becomes `next()`; `Change` no longer carries a version; `LiveChangeBroadcast` takes it as its second argument. The cursor store must support atomic `increment`; versions are opaque clock-seeded numbers (~1.8e15). The `force` flag on replay signals is removed as redundant.
 - Topic visibility is a property of the pattern: `Live::publicTopic('stats.{id}')` replaces `public:` on `#[LiveTopic]` and `->live()`. `Change` and `ResolvedTopic` lose `public`; `LiveChangeBroadcast` takes it as a second argument.
 - `->live($topic, only: [...])` now requires a non-empty `only`.
 - `LiveClient::pause()` is counted and returns a release function; `useLive()` pauses are scoped to the component and the adapters reset them on navigation.

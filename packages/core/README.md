@@ -65,7 +65,7 @@ fake.emit('documents.a', 1)
 
 ## Documentation
 
-[Client core](https://github.com/freepeace13/inertia-live-docs/blob/main/client-core.md), [Consistency](https://github.com/freepeace13/inertia-live-docs/blob/main/consistency.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
+[Client core](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/client-core.md), [Consistency](https://github.com/freepeace13/inertia-live-docs/blob/main/v1/consistency.md) and the [documentation index](https://github.com/freepeace13/inertia-live-docs/blob/main/README.md).
 
 ## Development
 

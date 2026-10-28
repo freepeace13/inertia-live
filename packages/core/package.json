@@ -2,6 +2,15 @@
   "name": "@freepeace13/inertia-live-core",
   "version": "0.1.1",
   "description": "Framework-agnostic client for Inertia Live: subscribes to topic signals and reloads the affected props.",
+  "keywords": [
+    "inertia",
+    "inertiajs",
+    "laravel",
+    "realtime",
+    "live-updates",
+    "laravel-echo",
+    "event-sourcing"
+  ],
   "license": "MIT",
   "type": "module",
   "files": [
@@ -39,11 +48,11 @@
     "laravel-echo": "^2.0.0"
   },
   "devDependencies": {
-    "laravel-echo": "^2.0.0"
+    "laravel-echo": "catalog:"
   },
   "sideEffects": false,
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "peerDependenciesMeta": {
     "laravel-echo": {

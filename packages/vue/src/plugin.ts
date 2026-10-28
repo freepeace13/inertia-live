@@ -1,6 +1,7 @@
 import {
   type ConnectionLike,
   type EchoLike,
+  type FetchCursors,
   LiveClient,
   type LiveProp,
   type Reloader,
@@ -22,17 +23,22 @@ export interface InertiaLiveOptions {
   maxWaitMs?: number
   /** Replace the default `router.reload` based reloader (mainly for tests). */
   reload?: Reloader
+  /** Replace the `fetch` based request to the server's cursors endpoint (mainly for tests). */
+  fetchCursors?: FetchCursors
   /** Called when a live reload fails. */
   onError?: (error: unknown) => void
 }
 
 /** Stands in for the client during SSR: always `connecting`, never subscribes or reloads. */
 function serverClient(): LiveClient {
-  const inert = {
+  // Typed over LiveClient's public members, so a new one fails the build until it is stubbed here.
+  const inert: { [K in keyof LiveClient]: LiveClient[K] } = {
     status: 'connecting',
     lastSyncedAt: null,
+    stale: false,
     onStatus: () => () => {},
     onSynced: () => () => {},
+    onStale: () => () => {},
     sync: () => {},
     pause: () => () => {},
     resume: () => {},
@@ -40,7 +46,7 @@ function serverClient(): LiveClient {
     refresh: async () => {},
     destroy: () => {},
   }
-  return inert as unknown as LiveClient
+  return inert as LiveClient
 }
 
 /**
@@ -61,6 +67,7 @@ export const InertiaLive: Plugin<[InertiaLiveOptions]> = {
       debounceMs: options.debounceMs,
       maxWaitMs: options.maxWaitMs,
       connection: options.connection,
+      fetchCursors: options.fetchCursors,
       onError: options.onError,
     })
 
